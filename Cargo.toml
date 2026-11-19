@@ -100,5 +100,4 @@ opt-level = "z"
 inherits = "release"
 lto = "fat"
 
-[target.'cfg(target_os = "android")'.dependencies]
-# Android-specific deps added per-crate
+# Android-specific dependencies are defined per-crate in their respective Cargo.toml files
