@@ -1,0 +1,38 @@
+[package]
+name = "yzchat-crypto"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+description = "Quantum-resistant hybrid cryptography for yzchat"
+repository = { workspace = true }
+authors = { workspace = true }
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+rand = { workspace = true }
+# Classical
+x25519-dalek = { workspace = true }
+ed25519-dalek = { workspace = true }
+chacha20poly1305 = { workspace = true }
+aes-gcm = { workspace = true }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+blake3 = { workspace = true }
+p256 = { workspace = true }
+# Post-Quantum (ML-KEM / ML-DSA) - using pqcrypto as stable alternative
+pqcrypto_kyber = { version = "0.4", features = ["kyber768"] }
+pqcrypto_dilithium = { version = "0.4", features = ["dilithium3"] }
+pqcrypto_traits = { version = "0.4", features = ["kem", "sign"] }
+
+# Noise protocol framework
+snow = "0.9"
+
+[features]
+default = ["std"]
+std = []

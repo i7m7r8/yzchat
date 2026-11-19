@@ -1,0 +1,32 @@
+#!/bin/bash
+# Gradle wrapper script - downloads Gradle if needed
+# This is a minimal wrapper; in production, use the full gradlew from gradle wrapper task
+
+set -e
+
+GRADLE_VERSION="8.5"
+GRADLE_DISTRIBUTION_URL="https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
+GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
+WRAPPER_DIR="$(dirname "$0")/gradle/wrapper"
+GRADLE_ZIP="$WRAPPER_DIR/gradle-${GRADLE_VERSION}-bin.zip"
+GRADLE_DIR="$GRADLE_USER_HOME/wrapper/dists/gradle-${GRADLE_VERSION}-bin"
+
+if [ ! -f "$GRADLE_ZIP" ]; then
+    echo "Downloading Gradle $GRADLE_VERSION..."
+    mkdir -p "$WRAPPER_DIR"
+    curl -L -o "$GRADLE_ZIP" "$GRADLE_DISTRIBUTION_URL"
+fi
+
+if [ ! -d "$GRADLE_DIR" ]; then
+    echo "Extracting Gradle..."
+    mkdir -p "$GRADLE_DIR"
+    unzip -q "$GRADLE_ZIP" -d "$GRADLE_DIR"
+fi
+
+GRADLE_BIN=$(find "$GRADLE_DIR" -name "gradle" -type f | head -1)
+if [ -z "$GRADLE_BIN" ]; then
+    echo "Error: Could not find gradle binary"
+    exit 1
+fi
+
+exec "$GRADLE_BIN" "$@"

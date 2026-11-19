@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colors -->
+    <color name="yzchat_blue">#0088CC</color>
+    <color name="yzchat_blue_dark">#006699</color>
+    <color name="yzchat_blue_light">#2AABE2</color>
+    <color name="yzchat_teal">#50E3C2</color>
+    <color name="yzchat_teal_dark">#3CC9B0</color>
+    <color name="yzchat_teal_light">#7FFFD4</color>
+
+    <!-- Background colors (Dark theme - true black for OLED) -->
+    <color name="yzchat_background">#000000</color>
+    <color name="yzchat_surface">#1C1C1E</color>
+    <color name="yzchat_surface_variant">#2C2C2E</color>
+    <color name="yzchat_on_surface">#FFFFFF</color>
+    <color name="yzchat_on_surface_variant">#EBEBF5</color> <!-- 60% opacity in code -->
+
+    <!-- Light theme backgrounds -->
+    <color name="yzchat_background_light">#FFFFFF</color>
+    <color name="yzchat_surface_light">#FFFFFF</color>
+    <color name="yzchat_surface_variant_light">#F2F2F7</color>
+    <color name="yzchat_on_surface_light">#000000</color>
+    <color name="yzchat_on_surface_variant_light">#1C1C1E</color>
+
+    <!-- Outline -->
+    <color name="yzchat_outline">#3A3A3C</color>
+    <color name="yzchat_outline_variant">#48484A</color>
+
+    <!-- Status colors -->
+    <color name="yzchat_red">#FF453A</color>
+    <color name="yzchat_green">#30D158</color>
+    <color name="yzchat_orange">#FF9F0A</color>
+    <color name="yzchat_yellow">#FFD60A</color>
+
+    <!-- Basic -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Avatar colors -->
+    <color name="avatar_1">#0088CC</color>
+    <color name="avatar_2">#50E3C2</color>
+    <color name="avatar_3">#FF6B6B</color>
+    <color name="avatar_4">#4ECDC4</color>
+    <color name="avatar_5">#45B7D1</color>
+    <color name="avatar_6">#96CEB4</color>
+    <color name="avatar_7">#FFEAA7</color>
+    <color name="avatar_8">#DDA0DD</color>
+    <color name="avatar_9">#98D8C8</color>
+    <color name="avatar_10">#F7DC6F</color>
+    <color name="avatar_11">#BB8FCE</color>
+    <color name="avatar_12">#85C1E9</color>
+
+    <!-- Call states -->
+    <color name="call_connecting">#2AABE2</color>
+    <color name="call_ringing">#FF9F0A</color>
+    <color name="call_connected">#30D158</color>
+    <color name="call_ended">#8E8E93</color>
+    <color name="call_failed">#FF453A</color>
+
+    <!-- Message status -->
+    <color name="message_sending">#8E8E93</color>
+    <color name="message_sent">#8E8E93</color>
+    <color name="message_delivered">#8E8E93</color>
+    <color name="message_read">#50E3C2</color>
+    <color name="message_failed">#FF453A</color>
+
+    <!-- Selection -->
+    <color name="selection_handle">#0088CC</color>
+    <color name="selection_background">#0088CC33</color>
+
+    <!-- Ripple -->
+    <color name="ripple_color">#FFFFFF1A</color>
+</resources>

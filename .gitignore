@@ -1,0 +1,62 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+build/
+.gradle/
+local.properties
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Coverage
+coverage/
+*.profraw
+*.profdata
+
+# Generated
+*.generated.*
+/app/src/main/java/org/yzchat/ffi/
+
+# JNI libs (built by CI)
+/yzchat-android/app/src/main/jniLibs/
+
+# Gradle wrapper (except the jar)
+/gradle/wrapper/gradle-*.jar
+
+# Secrets
+*.pem
+*.key
+*.crt
+secrets/
+.env
+.env.local
+
+# Backup
+*.bak
+*.backup

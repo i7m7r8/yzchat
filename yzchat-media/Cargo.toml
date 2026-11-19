@@ -1,0 +1,49 @@
+[package]
+name = "yzchat-media"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+description = "Media engine for yzchat: WebRTC, audio/video capture, encoding"
+repository = { workspace = true }
+authors = { workspace = true }
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+bytes = { workspace = true }
+uuid = { workspace = true }
+parking_lot = { workspace = true }
+
+# WebRTC
+webrtc = { workspace = true, features = ["data-channel", "sctp", "ice", "dtls", "srtp"] }
+sdp = { workspace = true }
+
+# GStreamer for media pipeline
+gstreamer = { workspace = true }
+gstreamer-app = { workspace = true }
+gstreamer-video = { workspace = true }
+gstreamer-audio = { workspace = true }
+gstreamer-base = { workspace = true }
+gstreamer-pbutils = { workspace = true }
+gstreamer-webrtc = { workspace = true }
+gstreamer-sdp = { workspace = true }
+
+# Codecs
+opus = { workspace = true }
+rav1e = { workspace = true }
+dav1d = { workspace = true }
+
+# Android
+jni = { workspace = true }
+android_logger = { workspace = true }
+
+# Crypto for DTLS-SRTP
+yzchat-crypto = { path = "../yzchat-crypto" }
+
+[features]
+default = ["std"]
+std = []
+android = ["jni", "android_logger"]

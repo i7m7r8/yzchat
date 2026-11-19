@@ -1,0 +1,60 @@
+<resources>
+    <!-- Base application theme -->
+    <style name="Theme.Yzchat" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/yzchat_blue</item>
+        <item name="colorPrimaryVariant">@color/yzchat_blue_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/yzchat_teal</item>
+        <item name="colorSecondaryVariant">@color/yzchat_teal_dark</item>
+        <item name="colorOnSecondary">@color/white</item>
+
+        <!-- Tertiary brand color -->
+        <item name="colorTertiary">@color/yzchat_teal</item>
+        <item name="colorTertiaryVariant">@color/yzchat_teal_dark</item>
+        <item name="colorOnTertiary">@color/black</item>
+
+        <!-- Background colors -->
+        <item name="android:colorBackground">@color/yzchat_background</item>
+        <item name="colorSurface">@color/yzchat_surface</item>
+        <item name="colorSurfaceVariant">@color/yzchat_surface_variant</item>
+        <item name="colorOnSurface">@color/yzchat_on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/yzchat_on_surface_variant</item>
+
+        <!-- Error -->
+        <item name="colorError">@color/yzchat_red</item>
+        <item name="colorOnError">@color/white</item>
+
+        <!-- Outline -->
+        <item name="colorOutline">@color/yzchat_outline</item>
+        <item name="colorOutlineVariant">@color/yzchat_outline_variant</item>
+
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+
+        <!-- Window -->
+        <item name="android:windowBackground">@color/yzchat_background</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowTranslucentNavigation">false</item>
+
+        <!-- Typography handled in Compose -->
+    </style>
+
+    <!-- Splash theme -->
+    <style name="Theme.Yzchat.Splash" parent="Theme.Yzchat">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <!-- Call theme (fullscreen) -->
+    <style name="Theme.Yzchat.Call" parent="Theme.Yzchat">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>
