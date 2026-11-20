@@ -1,16 +1,17 @@
 //! Video Engine: Capture, encode (AV1/VP9/H264), decode, render
 
-use crate::{MediaError, Result, VideoCodec, CodecParameters};
+use crate::{CodecParameters, MediaError, Result, VideoCodec};
 use anyhow::Context;
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
 use gstreamer_video as gst_video;
-use rav1e::{Encoder as Av1Encoder, EncoderConfig as Av1Config, Frame as Av1Frame, Packet as Av1Packet};
-use dav1d::{Decoder as Av1Decoder, DecoderSettings as Av1DecoderSettings, Picture as Av1Picture};
+use rav1e::{
+    Encoder as Av1Encoder, EncoderConfig as Av1Config, Frame as Av1Frame, Packet as Av1Packet,
+};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 /// Video configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -80,17 +81,16 @@ pub enum VideoColorFormat {
 /// Latency mode
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum LatencyMode {
-    UltraLow,  // < 50ms
-    Low,       // < 100ms
-    Normal,    // < 200ms
-    High,      // < 500ms
+    UltraLow, // < 50ms
+    Low,      // < 100ms
+    Normal,   // < 200ms
+    High,     // < 500ms
 }
 
 /// Video track for WebRTC
 pub struct VideoTrack {
     config: VideoConfig,
     av1_encoder: Mutex<Option<Av1Encoder>>,
-    av1_decoder: Mutex<Option<Av1Decoder>>,
     frame_counter: Mutex<u64>,
 }
 
@@ -101,7 +101,11 @@ impl VideoTrack {
         let mut av1_config = Av1Config::new();
         av1_config.width = config.width as usize;
         av1_config.height = config.height as usize;
-        av1_config.bit_depth = if matches!(config.color_format, VideoColorFormat::P010) { 10 } else { 8 };
+        av1_config.bit_depth = if matches!(config.color_format, VideoColorFormat::P010) {
+            10
+        } else {
+            8
+        };
         av1_config.chroma_sampling = rav1e::ChromaSampling::Cs420;
         av1_config.speed_settings = rav1e::SpeedSettings::from_preset(6); // Balanced
         av1_config.quantizer = 30;
@@ -110,22 +114,16 @@ impl VideoTrack {
         av1_config.bitrate = config.bitrate as usize;
         av1_config.max_bitrate = config.max_bitrate as usize;
         av1_config.key_frame_interval = config.keyframe_interval as usize;
-        av1_config.low_latency = matches!(config.latency_mode, LatencyMode::UltraLow | LatencyMode::Low);
+        av1_config.low_latency = matches!(
+            config.latency_mode,
+            LatencyMode::UltraLow | LatencyMode::Low
+        );
 
-        let av1_encoder = Av1Encoder::new(av1_config)
-            .context("Failed to create AV1 encoder")?;
-
-        // Initialize AV1 decoder
-        let mut decoder_settings = Av1DecoderSettings::default();
-        decoder_settings.max_frame_delay = 0; // Low latency
-        decoder_settings.n_threads = num_cpus::get();
-        let av1_decoder = Av1Decoder::new(decoder_settings)
-            .context("Failed to create AV1 decoder")?;
+        let av1_encoder = Av1Encoder::new(av1_config).context("Failed to create AV1 encoder")?;
 
         Ok(Self {
             config,
             av1_encoder: Mutex::new(Some(av1_encoder)),
-            av1_decoder: Mutex::new(Some(av1_decoder)),
             frame_counter: Mutex::new(0),
         })
     }
@@ -160,20 +158,11 @@ impl VideoTrack {
         Ok(output)
     }
 
-    /// Decode AV1 packet to YUV
-    pub async fn decode(&self, data: &[u8]) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
-        let mut decoder = self.av1_decoder.lock().await;
-        let decoder = decoder.as_mut().ok_or(MediaError::DecoderNotInitialized)?;
-
-        decoder.send_data(data).context("Failed to send data")?;
-
-        let picture = decoder.get_picture().context("Failed to get picture")?;
-
-        let y_plane = picture.planes[0].to_vec();
-        let u_plane = picture.planes[1].to_vec();
-        let v_plane = picture.planes[2].to_vec();
-
-        Ok((y_plane, u_plane, v_plane))
+    /// Decode AV1 packet to YUV (placeholder - uses rav1e encoder side only for now)
+    pub async fn decode(&self, _data: &[u8]) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+        // AV1 decoding placeholder - dav1d dependency removed
+        // TODO: Implement AV1 decoding using gstreamer or another decoder
+        Err(MediaError::DecoderNotInitialized.into())
     }
 
     /// Get config
@@ -192,15 +181,20 @@ pub struct VideoCapture {
 
 impl VideoCapture {
     /// Create new video capture
-    pub async fn new(config: VideoConfig) -> Result<(Self, mpsc::Receiver<(Vec<u8>, Vec<u8>, Vec<u8>)>)> {
+    pub async fn new(
+        config: VideoConfig,
+    ) -> Result<(Self, mpsc::Receiver<(Vec<u8>, Vec<u8>, Vec<u8>)>)> {
         let (frame_tx, frame_rx) = mpsc::channel(30);
 
-        Ok((Self {
-            config,
-            pipeline: None,
-            appsink: None,
-            frame_tx,
-        }, frame_rx))
+        Ok((
+            Self {
+                config,
+                pipeline: None,
+                appsink: None,
+                frame_tx,
+            },
+            frame_rx,
+        ))
     }
 
     /// Start capture
@@ -236,7 +230,8 @@ impl VideoCapture {
             .downcast::<gst::Pipeline>()
             .map_err(|_| MediaError::PipelineCreationFailed)?;
 
-        let appsink = pipeline.by_name("sink")
+        let appsink = pipeline
+            .by_name("sink")
             .ok_or(MediaError::ElementNotFound("appsink".into()))?
             .downcast::<gst_app::AppSink>()
             .map_err(|_| MediaError::ElementCastFailed)?;
@@ -265,7 +260,8 @@ impl VideoCapture {
                 .build(),
         );
 
-        pipeline.set_state(gst::State::Playing)
+        pipeline
+            .set_state(gst::State::Playing)
             .context("Failed to start pipeline")?;
 
         self.pipeline = Some(pipeline);
@@ -332,19 +328,23 @@ impl VideoRender {
             .downcast::<gst::Pipeline>()
             .map_err(|_| MediaError::PipelineCreationFailed)?;
 
-        let appsrc = pipeline.by_name("src")
+        let appsrc = pipeline
+            .by_name("src")
             .ok_or(MediaError::ElementNotFound("appsrc".into()))?
             .downcast::<gst_app::AppSrc>()
             .map_err(|_| MediaError::ElementCastFailed)?;
 
-        appsrc.set_caps(&gst_video::VideoCapsBuilder::new()
-            .format(gst_video::VideoFormat::I420)
-            .width(self.config.width as i32)
-            .height(self.config.height as i32)
-            .framerate(gst::Fraction::new(self.config.framerate as i32, 1))
-            .build());
+        appsrc.set_caps(
+            &gst_video::VideoCapsBuilder::new()
+                .format(gst_video::VideoFormat::I420)
+                .width(self.config.width as i32)
+                .height(self.config.height as i32)
+                .framerate(gst::Fraction::new(self.config.framerate as i32, 1))
+                .build(),
+        );
 
-        pipeline.set_state(gst::State::Playing)
+        pipeline
+            .set_state(gst::State::Playing)
             .context("Failed to start pipeline")?;
 
         self.pipeline = Some(pipeline);
@@ -362,7 +362,9 @@ impl VideoRender {
             .map_err(|_| MediaError::BufferCreationFailed)?;
 
         {
-            let mut map = buffer.map_writable().map_err(|_| MediaError::BufferMapFailed)?;
+            let mut map = buffer
+                .map_writable()
+                .map_err(|_| MediaError::BufferMapFailed)?;
             let mut offset = 0;
             map.as_mut_slice()[offset..offset + y_plane.len()].copy_from_slice(y_plane);
             offset += y_plane.len();
@@ -377,11 +379,13 @@ impl VideoRender {
             buffer.set_pts(gst::ClockTime::NONE);
             buffer.set_dts(gst::ClockTime::NONE);
             buffer.set_duration(gst::ClockTime::from_nseconds(
-                (1_000_000_000 / self.config.framerate as u64) as u64
+                (1_000_000_000 / self.config.framerate as u64) as u64,
             ));
         }
 
-        appsrc.push_buffer(buffer).map_err(|_| MediaError::PushBufferFailed)?;
+        appsrc
+            .push_buffer(buffer)
+            .map_err(|_| MediaError::PushBufferFailed)?;
         Ok(())
     }
 
@@ -431,7 +435,9 @@ impl VideoEngine {
 
     /// Start
     pub async fn start(&mut self) -> Result<()> {
-        if self.running { return Ok(()); }
+        if self.running {
+            return Ok(());
+        }
 
         self.capture.as_mut().unwrap().start().await?;
         self.render.as_mut().unwrap().start().await?;
@@ -457,7 +463,9 @@ impl VideoEngine {
 
     /// Stop
     pub async fn stop(&mut self) -> Result<()> {
-        if !self.running { return Ok(()); }
+        if !self.running {
+            return Ok(());
+        }
         self.capture.as_mut().unwrap().stop().await?;
         self.render.as_mut().unwrap().stop().await?;
         self.running = false;

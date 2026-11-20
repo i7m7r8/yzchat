@@ -46,9 +46,6 @@ pub enum MediaError {
     #[error("RAV1E error: {0}")]
     Rav1e(#[from] rav1e::EncoderStatus),
 
-    #[error("DAV1D error: {0}")]
-    Dav1d(#[from] dav1d::Error),
-
     #[error("WebRTC error: {0}")]
     WebRtc(#[from] webrtc::Error),
 

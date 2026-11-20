@@ -33,7 +33,6 @@ gstreamer-sdp = { workspace = true, features = ["v1_18"] }
 # Codecs
 opus = { workspace = true }
 rav1e = { workspace = true }
-dav1d = { workspace = true }
 
 # Android - optional for native builds
 jni = { workspace = true, optional = true }

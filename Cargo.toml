@@ -70,7 +70,6 @@ gstreamer-pbutils = { version = "0.20", features = ["v1_18"] }
 gstreamer-sdp = { version = "0.20", features = ["v1_18"] }
 opus = "0.4"
 rav1e = "0.7"
-dav1d = "0.9"
 
 # FFI / UniFFI
 uniffi = { version = "0.28" }
