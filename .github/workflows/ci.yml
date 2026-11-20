@@ -169,10 +169,10 @@ jobs:
         run: cargo install cargo-audit --locked
 
       - name: Run security audit
-        run: cargo audit --workspace || true
+        run: cargo audit || true
 
       - name: Check for outdated dependencies
-        run: cargo install cargo-outdated --locked && cargo outdated --workspace --root-deps-only || true
+        run: cargo install cargo-outdated --locked && cargo outdated --root-deps-only || true
 
   # ============================================
   # Documentation
