@@ -77,7 +77,6 @@ dav1d = "0.9"
 uniffi = { version = "0.32", features = ["async"] }
 uniffi_macros = "0.32"
 uniffi_build = "0.32"
-uniffi_build_macros = "0.32"
 
 # Android
 jni = { version = "0.21", features = ["jni-8"] }

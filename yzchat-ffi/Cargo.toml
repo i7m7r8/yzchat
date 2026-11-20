@@ -25,7 +25,6 @@ yzchat-media = { path = "../yzchat-media" }
 
 [build-dependencies]
 uniffi_build = { workspace = true }
-uniffi_build_macros = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
