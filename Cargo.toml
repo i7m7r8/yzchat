@@ -81,7 +81,7 @@ uniffi_build_macros = "0.28"
 
 # Android
 jni = { version = "0.21", features = ["jni-8"] }
-android_logger = "0.16"
+android_logger = "0.15"
 log = "0.4"
 
 # Storage
