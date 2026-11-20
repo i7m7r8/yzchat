@@ -35,7 +35,8 @@ jobs:
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             libopus-dev \
-            nasm
+            nasm \
+            libdav1d-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -85,7 +86,8 @@ jobs:
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
             libopus-dev \
-            nasm
+            nasm \
+            libdav1d-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
