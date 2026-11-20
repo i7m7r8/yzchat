@@ -21,7 +21,7 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 
 # Iroh P2P stack
-iroh = { workspace = true, features = ["discovery-pkarr-dht", "discovery-local-network", "fs-store", "blobs", "rpc"] }
+iroh = { workspace = true, features = ["discovery-pkarr-dht", "discovery-local-network", "fs-store"] }
 
 # QUIC/WebRTC
 quinn = { workspace = true }
