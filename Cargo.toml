@@ -61,14 +61,14 @@ sdp = "0.3"
 
 # Media
 webrtc = { version = "0.20" }  # webrtc-rs (uses runtime-tokio by default)
-gstreamer = { version = "0.20", features = ["v1_18"] }
-gstreamer-app = { version = "0.20", features = ["v1_18"] }
-gstreamer-video = { version = "0.20", features = ["v1_18"] }
-gstreamer-audio = { version = "0.20", features = ["v1_18"] }
-gstreamer-base = { version = "0.20", features = ["v1_18"] }
-gstreamer-pbutils = { version = "0.20", features = ["v1_18"] }
-gstreamer-webrtc = { version = "0.20", features = ["v1_18"] }
-gstreamer-sdp = { version = "0.20", features = ["v1_18"] }
+gstreamer = { version = "0.22", features = ["v1_20"] }
+gstreamer-app = { version = "0.22", features = ["v1_20"] }
+gstreamer-video = { version = "0.22", features = ["v1_20"] }
+gstreamer-audio = { version = "0.22", features = ["v1_20"] }
+gstreamer-base = { version = "0.22", features = ["v1_20"] }
+gstreamer-pbutils = { version = "0.22", features = ["v1_20"] }
+gstreamer-webrtc = { version = "0.22", features = ["v1_20"] }
+gstreamer-sdp = { version = "0.22", features = ["v1_20"] }
 opus = "0.4"
 rav1e = "0.7"
 dav1d = "0.9"
