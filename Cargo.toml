@@ -60,7 +60,7 @@ rcgen = "0.11"
 sdp = "0.3"
 
 # Media
-webrtc = { version = "0.12", features = ["data-channel", "sctp"] }  # webrtc-rs
+webrtc = { version = "0.21", features = ["data-channel", "sctp"] }  # webrtc-rs
 gstreamer = { version = "0.21", features = ["v1_20", "gstreamer", "gstreamer-app", "gstreamer-video", "gstreamer-audio", "gstreamer-base", "gstreamer-pbutils"] }
 gstreamer-app = { version = "0.21", features = ["v1_20"] }
 gstreamer-video = { version = "0.21", features = ["v1_20"] }
