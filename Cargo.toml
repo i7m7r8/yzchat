@@ -74,7 +74,7 @@ rav1e = "0.7"
 dav1d = "0.9"
 
 # FFI / UniFFI
-uniffi = { version = "0.28", features = ["async"] }
+uniffi = { version = "0.28" }
 uniffi_macros = "0.28"
 uniffi_build = "0.28"
 
