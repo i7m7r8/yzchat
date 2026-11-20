@@ -40,7 +40,7 @@ aes-gcm = "0.10"
 hkdf = "0.12"
 sha2 = "0.10"
 blake3 = "1.5"
-rand = { version = "0.8", features = ["rngs", "std"] }
+rand = { version = "0.9" }
 zeroize = "1.7"
 subtle = "2.5"
 # Post-quantum (hybrid) - using pqcrypto crates (stable alternatives to ML-KEM/ML-DSA)
