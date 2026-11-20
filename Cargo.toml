@@ -69,7 +69,7 @@ gstreamer-base = { version = "0.21", features = ["v1_20"] }
 gstreamer-pbutils = { version = "0.21", features = ["v1_20"] }
 gstreamer-webrtc = { version = "0.21", features = ["v1_20"] }
 gstreamer-sdp = { version = "0.21", features = ["v1_20"] }
-opus = "0.7"
+opus = "0.4"
 rav1e = "0.7"
 dav1d = "0.9"
 
