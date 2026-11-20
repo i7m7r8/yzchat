@@ -62,13 +62,13 @@ sdp = "0.3"
 # Media
 webrtc = { version = "0.12", features = ["data-channel", "sctp"] }  # webrtc-rs
 gstreamer = { version = "0.21", features = ["v1_20", "gstreamer", "gstreamer-app", "gstreamer-video", "gstreamer-audio", "gstreamer-base", "gstreamer-pbutils"] }
-gstreamer-app = "0.21"
-gstreamer-video = "0.21"
-gstreamer-audio = "0.21"
-gstreamer-base = "0.21"
-gstreamer-pbutils = "0.21"
-gstreamer-webrtc = "0.21"
-gstreamer-sdp = "0.21"
+gstreamer-app = { version = "0.21", features = ["v1_20"] }
+gstreamer-video = { version = "0.21", features = ["v1_20"] }
+gstreamer-audio = { version = "0.21", features = ["v1_20"] }
+gstreamer-base = { version = "0.21", features = ["v1_20"] }
+gstreamer-pbutils = { version = "0.21", features = ["v1_20"] }
+gstreamer-webrtc = { version = "0.21", features = ["v1_20"] }
+gstreamer-sdp = { version = "0.21", features = ["v1_20"] }
 opus = "0.5"
 rav1e = "0.7"
 dav1d = "0.9"
