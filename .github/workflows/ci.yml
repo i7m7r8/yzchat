@@ -34,13 +34,7 @@ jobs:
             libglib2.0-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
-            libgstreamer-plugins-ugly1.0-dev \
-            libgstreamer-plugins-extra1.0-dev \
-            libopus-dev \
-            libvpx-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libavutil-dev
+            libopus-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -89,13 +83,7 @@ jobs:
             libglib2.0-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
-            libgstreamer-plugins-ugly1.0-dev \
-            libgstreamer-plugins-extra1.0-dev \
-            libopus-dev \
-            libvpx-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libavutil-dev
+            libopus-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
