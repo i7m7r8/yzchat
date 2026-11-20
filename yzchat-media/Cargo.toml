@@ -36,9 +36,9 @@ opus = { workspace = true }
 rav1e = { workspace = true }
 dav1d = { workspace = true }
 
-# Android
-jni = { workspace = true }
-android_logger = { workspace = true }
+# Android - optional for native builds
+jni = { workspace = true, optional = true }
+android_logger = { workspace = true, optional = true }
 
 # Crypto for DTLS-SRTP
 yzchat-crypto = { path = "../yzchat-crypto" }
