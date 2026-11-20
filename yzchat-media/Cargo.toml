@@ -18,7 +18,7 @@ uuid = { workspace = true }
 parking_lot = { workspace = true }
 
 # WebRTC
-webrtc = { workspace = true, features = ["data-channel", "sctp", "ice", "dtls", "srtp"] }
+webrtc = { workspace = true, features = ["data-channel", "sctp"] }
 sdp = { workspace = true }
 
 # GStreamer for media pipeline

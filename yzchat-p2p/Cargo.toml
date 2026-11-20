@@ -22,10 +22,6 @@ chrono = { workspace = true }
 
 # Iroh P2P stack
 iroh = { workspace = true, features = ["discovery-dht", "discovery-mdns", "discovery-n0", "blobs", "rpc", "docs"] }
-iroh-net = { version = "0.43", features = ["discovery-dht", "discovery-mdns", "discovery-n0"] }
-iroh-blobs = { version = "0.43", features = ["mem"] }
-iroh-rpc = { version = "0.43" }
-iroh-docs = { version = "0.43" }
 
 # QUIC/WebRTC
 quinn = { workspace = true }
