@@ -61,8 +61,7 @@ sdp = "0.3"
 
 # Media
 webrtc = { version = "0.12", features = ["data-channel", "sctp"] }  # webrtc-rs
-gst = { version = "0.21", features = ["v1_20", "gstreamer", "gstreamer-app", "gstreamer-video", "gstreamer-audio", "gstreamer-base", "gstreamer-pbutils"] }
-gstreamer = "0.21"
+gstreamer = { version = "0.21", features = ["v1_20", "gstreamer", "gstreamer-app", "gstreamer-video", "gstreamer-audio", "gstreamer-base", "gstreamer-pbutils"] }
 gstreamer-app = "0.21"
 gstreamer-video = "0.21"
 gstreamer-audio = "0.21"
