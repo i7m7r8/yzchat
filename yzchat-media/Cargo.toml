@@ -1,11 +1,11 @@
 [package]
 name = "yzchat-media"
-version = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
 description = "Media engine for yzchat: WebRTC, audio/video capture, encoding"
-repository = { workspace = true }
-authors = { workspace = true }
+repository = "https://github.com/yzchat/yzchat"
+authors = ["yzchat contributors <dev@yzchat.org>"]
 
 [dependencies]
 anyhow = { workspace = true }

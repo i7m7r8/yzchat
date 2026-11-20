@@ -1,11 +1,11 @@
 [package]
 name = "yzchat-p2p"
-version = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
 description = "P2P networking layer for yzchat using Iroh"
-repository = { workspace = true }
-authors = { workspace = true }
+repository = "https://github.com/yzchat/yzchat"
+authors = ["yzchat contributors <dev@yzchat.org>"]
 
 [dependencies]
 anyhow = { workspace = true }
