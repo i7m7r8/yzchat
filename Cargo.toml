@@ -44,8 +44,8 @@ rand = { version = "0.8", features = ["rngs", "std"] }
 zeroize = "1.7"
 subtle = "2.5"
 # Post-quantum (hybrid) - using pqcrypto crates (stable alternatives to ML-KEM/ML-DSA)
-pqcrypto-kyber = { version = "0.3", features = ["kyber768"] }      # Kyber-768 (ML-KEM-768)
-pqcrypto-dilithium = { version = "0.3", features = ["dilithium3"] } # Dilithium3 (ML-DSA-65)
+pqcrypto-kyber = { version = "0.8", features = ["kyber768"] }      # Kyber-768 (ML-KEM-768)
+pqcrypto-dilithium = { version = "0.5", features = ["dilithium3"] } # Dilithium3 (ML-DSA-65)
 pqcrypto-traits = { version = "0.3" }
 
 # P2P / Networking
