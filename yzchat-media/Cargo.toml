@@ -28,7 +28,6 @@ gstreamer-video = { workspace = true, features = ["v1_18"] }
 gstreamer-audio = { workspace = true, features = ["v1_18"] }
 gstreamer-base = { workspace = true, features = ["v1_18"] }
 gstreamer-pbutils = { workspace = true, features = ["v1_18"] }
-gstreamer-webrtc = { workspace = true, features = ["v1_18"] }
 gstreamer-sdp = { workspace = true, features = ["v1_18"] }
 
 # Codecs

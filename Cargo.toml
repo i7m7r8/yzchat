@@ -67,7 +67,6 @@ gstreamer-video = { version = "0.20", features = ["v1_18"] }
 gstreamer-audio = { version = "0.20", features = ["v1_18"] }
 gstreamer-base = { version = "0.20", features = ["v1_18"] }
 gstreamer-pbutils = { version = "0.20", features = ["v1_18"] }
-gstreamer-webrtc = { version = "0.20", features = ["v1_18"] }
 gstreamer-sdp = { version = "0.20", features = ["v1_18"] }
 opus = "0.4"
 rav1e = "0.7"
