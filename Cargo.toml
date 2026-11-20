@@ -79,7 +79,7 @@ uniffi_macros = "0.32"
 uniffi_build = "0.32"
 
 # Android
-jni = { version = "0.21", features = ["jni-8"] }
+jni = { version = "0.21", features = ["invocation"] }
 android_logger = "0.15"
 log = "0.4"
 
