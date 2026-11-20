@@ -26,9 +26,9 @@ sha2 = { workspace = true }
 blake3 = { workspace = true }
 p256 = { workspace = true }
 # Post-Quantum (ML-KEM / ML-DSA) - using pqcrypto crates
-pqcrypto_kyber = { workspace = true }
-pqcrypto_dilithium = { workspace = true }
-pqcrypto_traits = { workspace = true }
+pqcrypto-kyber = { workspace = true }
+pqcrypto-dilithium = { workspace = true }
+pqcrypto-traits = { workspace = true }
 
 # Noise protocol framework
 snow = "0.9"
