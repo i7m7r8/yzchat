@@ -22,14 +22,14 @@ webrtc = { workspace = true }
 sdp = { workspace = true }
 
 # GStreamer for media pipeline
-gstreamer = { workspace = true, features = ["v1_20"] }
-gstreamer-app = { workspace = true, features = ["v1_20"] }
-gstreamer-video = { workspace = true, features = ["v1_20"] }
-gstreamer-audio = { workspace = true, features = ["v1_20"] }
-gstreamer-base = { workspace = true, features = ["v1_20"] }
-gstreamer-pbutils = { workspace = true, features = ["v1_20"] }
-gstreamer-webrtc = { workspace = true, features = ["v1_20"] }
-gstreamer-sdp = { workspace = true, features = ["v1_20"] }
+gstreamer = { workspace = true, features = ["v1_18"] }
+gstreamer-app = { workspace = true, features = ["v1_18"] }
+gstreamer-video = { workspace = true, features = ["v1_18"] }
+gstreamer-audio = { workspace = true, features = ["v1_18"] }
+gstreamer-base = { workspace = true, features = ["v1_18"] }
+gstreamer-pbutils = { workspace = true, features = ["v1_18"] }
+gstreamer-webrtc = { workspace = true, features = ["v1_18"] }
+gstreamer-sdp = { workspace = true, features = ["v1_18"] }
 
 # Codecs
 opus = { workspace = true }
