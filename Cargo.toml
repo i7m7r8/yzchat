@@ -43,10 +43,10 @@ blake3 = "1.5"
 rand = { version = "0.8", features = ["rngs", "std"] }
 zeroize = "1.7"
 subtle = "2.5"
-# Post-quantum (hybrid)
-ml-kem = { version = "0.2", features = ["kyber768"] }        # Kyber-768 (ML-KEM-768)
-ml-dsa = { version = "0.2", features = ["dilithium3"] }       # Dilithium3 (ML-DSA-65)
-# Note: Use pqcrypto crates when ml-kem/ml-dsa stabilize; fallback to oqs or liboqs-sys for now
+# Post-quantum (hybrid) - using pqcrypto crates (stable alternatives to ML-KEM/ML-DSA)
+pqcrypto_kyber = { version = "0.4", features = ["kyber768"] }      # Kyber-768 (ML-KEM-768)
+pqcrypto_dilithium = { version = "0.4", features = ["dilithium3"] } # Dilithium3 (ML-DSA-65)
+pqcrypto_traits = { version = "0.4", features = ["kem", "sign"] }
 
 # P2P / Networking
 iroh = { version = "0.43", features = ["docs", "discovery-dht", "discovery-mdns", "discovery-n0", "blobs", "rpc"] }

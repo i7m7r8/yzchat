@@ -25,10 +25,10 @@ hkdf = { workspace = true }
 sha2 = { workspace = true }
 blake3 = { workspace = true }
 p256 = { workspace = true }
-# Post-Quantum (ML-KEM / ML-DSA) - using pqcrypto as stable alternative
-pqcrypto_kyber = { version = "0.4", features = ["kyber768"] }
-pqcrypto_dilithium = { version = "0.4", features = ["dilithium3"] }
-pqcrypto_traits = { version = "0.4", features = ["kem", "sign"] }
+# Post-Quantum (ML-KEM / ML-DSA) - using pqcrypto crates
+pqcrypto_kyber = { workspace = true }
+pqcrypto_dilithium = { workspace = true }
+pqcrypto_traits = { workspace = true }
 
 # Noise protocol framework
 snow = "0.9"
