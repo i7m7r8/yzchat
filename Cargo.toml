@@ -49,12 +49,12 @@ pqcrypto-dilithium = { version = "0.3", features = ["dilithium3"] } # Dilithium3
 pqcrypto-traits = { version = "0.3" }
 
 # P2P / Networking
-iroh = { version = "0.43", features = ["docs", "discovery-dht", "discovery-mdns", "discovery-n0", "blobs", "rpc"] }
+iroh = { version = "0.30", features = ["docs", "discovery-dht", "discovery-mdns", "discovery-n0", "blobs", "rpc"] }
 # iroh provides: QUIC transport, DHT (kademlia), blobs, RPC, WebRTC via iroh-webrtc (future)
 # For now: iroh + webrtc via iroh-webrtc when available
-quinn = "0.11"
-quinn-proto = "0.11"
-rustls = { version = "0.23", features = ["dangerous-configuration", "logging", "std"] }
+quinn = "0.10"
+quinn-proto = "0.10"
+rustls = { version = "0.21", features = ["dangerous-configuration", "logging", "std"] }
 rustls-pemfile = "1.0"
 rcgen = "0.11"
 sdp = "0.3"
