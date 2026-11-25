@@ -255,19 +255,15 @@ impl Dh for HybridDh {
     fn priv_len(&self) -> usize {
         sizes::HYBRID_KEM_PRIVATE
     }
-    fn set(&mut self, _privkey: &[u8]) -> Result<(), snow::Error> {
-        Ok(())
-    }
-    fn generate(&mut self, _rng: &mut dyn rand::RngCore) -> Result<(), snow::Error> {
-        Ok(())
-    }
+    fn set(&mut self, _privkey: &[u8]) {}
+    fn generate(&mut self, _rng: &mut dyn snow::types::Random) {}
     fn pubkey(&self) -> &[u8] {
         &[]
     }
     fn privkey(&self) -> &[u8] {
         &[]
     }
-    fn dh(&self, _pubkey: &[u8], _out: &mut [u8]) -> Result<(), snow::Error> {
+    fn dh(&self, _pubkey: &[u8], _out: &mut [u8]) -> std::result::Result<(), snow::Error> {
         Ok(())
     }
 }
@@ -279,28 +275,17 @@ impl Cipher for HybridCipher {
     fn name(&self) -> &'static str {
         "ChaChaPoly"
     }
-    fn key_len(&self) -> usize {
-        sizes::CHACHA20POLY1305_KEY
-    }
-    fn set_key(&mut self, _key: &[u8]) -> Result<(), snow::Error> {
-        Ok(())
-    }
-    fn encrypt(
-        &mut self,
-        _nonce: u64,
-        _authtext: &[u8],
-        _plaintext: &[u8],
-        _ciphertext: &mut [u8],
-    ) -> Result<usize, snow::Error> {
-        Ok(0)
+    fn set(&mut self, _key: &[u8]) {}
+    fn encrypt(&self, _nonce: u64, _authtext: &[u8], _plaintext: &[u8], _out: &mut [u8]) -> usize {
+        0
     }
     fn decrypt(
-        &mut self,
+        &self,
         _nonce: u64,
         _authtext: &[u8],
         _ciphertext: &[u8],
-        _plaintext: &mut [u8],
-    ) -> Result<usize, snow::Error> {
+        _out: &mut [u8],
+    ) -> std::result::Result<usize, snow::Error> {
         Ok(0)
     }
 }
@@ -312,10 +297,13 @@ impl Hash for HybridHash {
     fn name(&self) -> &'static str {
         "BLAKE3s"
     }
+    fn block_len(&self) -> usize {
+        64
+    }
     fn hash_len(&self) -> usize {
         32
     }
-    fn hash(&self, _input: &[u8], _output: &mut [u8]) -> Result<(), snow::Error> {
-        Ok(())
-    }
+    fn reset(&mut self) {}
+    fn input(&mut self, _data: &[u8]) {}
+    fn result(&mut self, _out: &mut [u8]) {}
 }
