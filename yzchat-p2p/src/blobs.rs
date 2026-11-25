@@ -1,23 +1,23 @@
 //! Blob Store: Large file transfer with streaming, deduplication, encryption
 
-use crate::{P2pError, Result, NodeId};
+use crate::{NodeId, P2pError, Result};
 use anyhow::Context;
 use iroh::Endpoint;
-use iroh_blobs::{store::Store, Hash, HashAndFormat, Tag, blob::Blob};
+use iroh_blobs::get::progress::Progress;
+use iroh_blobs::get::request::Request as GetRequest;
 use iroh_blobs::protocol::{Blobs, BlobsProtocol};
 use iroh_blobs::rpc::client::blobs::BlobsClient;
 use iroh_blobs::rpc::server::blobs::BlobsServer;
 use iroh_blobs::store::fs::FsStore;
 use iroh_blobs::store::mem::MemStore;
-use iroh_blobs::get::request::Request as GetRequest;
-use iroh_blobs::get::progress::Progress;
+use iroh_blobs::{blob::Blob, store::Store, Hash, HashAndFormat, Tag};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tracing::{info, debug, warn};
+use tokio::sync::RwLock;
+use tracing::{debug, info, warn};
 use uuid::Uuid;
-use yzchat_crypto::{HybridKem, HybridKemSharedSecret, HybridKemPublicKey};
+use yzchat_crypto::{HybridKem, HybridKemPublicKey, HybridKemSharedSecret};
 
 /// Blob store configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -39,7 +39,7 @@ impl Default for BlobConfig {
         Self {
             store_path: None,
             max_blob_size: 2 * 1024 * 1024 * 1024, // 2 GB
-            chunk_size: 1024 * 1024, // 1 MB
+            chunk_size: 1024 * 1024,               // 1 MB
             encrypt: true,
             cache_size: 100 * 1024 * 1024, // 100 MB
         }
@@ -154,7 +154,10 @@ impl BlobStore {
     ) -> Result<Box<dyn AsyncRead + Unpin + Send>> {
         let reader = self.store.get(hash).await?;
         if decrypt && encryption_key.is_some() {
-            Ok(Box::new(DecryptedReader::new(reader, encryption_key.unwrap())))
+            Ok(Box::new(DecryptedReader::new(
+                reader,
+                encryption_key.unwrap(),
+            )))
         } else {
             Ok(reader)
         }
@@ -241,7 +244,11 @@ impl BlobStore {
 
     /// Get transfer progress
     pub async fn get_progress(&self, transfer_id: Uuid) -> Option<BlobTransferProgress> {
-        self.transfers.read().await.get(&transfer_id).map(|t| t.progress.clone())
+        self.transfers
+            .read()
+            .await
+            .get(&transfer_id)
+            .map(|t| t.progress.clone())
     }
 
     /// List all transfers
@@ -268,7 +275,10 @@ impl BlobStore {
     }
 
     /// Import blob from file
-    pub async fn import_from_file(&self, path: PathBuf) -> Result<(Hash, iroh_blobs::store::Format, u64)> {
+    pub async fn import_from_file(
+        &self,
+        path: PathBuf,
+    ) -> Result<(Hash, iroh_blobs::store::Format, u64)> {
         let file = tokio::fs::File::open(path).await?;
         self.add_blob(file, false, None).await
     }
@@ -317,7 +327,11 @@ struct DecryptedReader<R: AsyncRead + Unpin> {
 impl<R: AsyncRead + Unpin> DecryptedReader<R> {
     fn new(inner: R, key: HybridKemSharedSecret) -> Self {
         let cipher = chacha20poly1305::ChaCha20Poly1305::new(key.as_ref().into());
-        Self { inner, cipher, nonce_counter: 0 }
+        Self {
+            inner,
+            cipher,
+            nonce_counter: 0,
+        }
     }
 }
 

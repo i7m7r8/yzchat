@@ -1,13 +1,13 @@
 //! Codec definitions and parameters
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Audio codec types
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum AudioCodec {
     Opus,
-    PCMU,   // G.711 μ-law
-    PCMA,   // G.711 A-law
+    PCMU, // G.711 μ-law
+    PCMA, // G.711 A-law
     G722,
     ISAC,
     ILBC,
@@ -143,12 +143,24 @@ impl SdpBuilder {
     /// Build video media section
     pub fn video(codec: VideoCodec, params: &CodecParameters, port: u16, rtcp_port: u16) -> String {
         let mut fmtp = Vec::new();
-        if let Some(p) = &params.profile_id { fmtp.push(format!("profile-id={}", p)); }
-        if let Some(p) = &params.level_id { fmtp.push(format!("level-id={}", p)); }
-        if let Some(p) = &params.packetization_mode { fmtp.push(format!("packetization-mode={}", p)); }
-        if let Some(p) = params.max_framerate { fmtp.push(format!("max-framerate={}", p)); }
-        if let Some(p) = params.max_bitrate { fmtp.push(format!("max-bitrate={}", p)); }
-        if let Some((w, h)) = params.max_resolution { fmtp.push(format!("max-resolution={}x{}", w, h)); }
+        if let Some(p) = &params.profile_id {
+            fmtp.push(format!("profile-id={}", p));
+        }
+        if let Some(p) = &params.level_id {
+            fmtp.push(format!("level-id={}", p));
+        }
+        if let Some(p) = &params.packetization_mode {
+            fmtp.push(format!("packetization-mode={}", p));
+        }
+        if let Some(p) = params.max_framerate {
+            fmtp.push(format!("max-framerate={}", p));
+        }
+        if let Some(p) = params.max_bitrate {
+            fmtp.push(format!("max-bitrate={}", p));
+        }
+        if let Some((w, h)) = params.max_resolution {
+            fmtp.push(format!("max-resolution={}x{}", w, h));
+        }
 
         format!(
             "m=video {} RTP/SAVPF {}\n\
@@ -168,10 +180,19 @@ impl SdpBuilder {
     }
 
     /// Build screen share media section
-    pub fn screen(codec: VideoCodec, params: &CodecParameters, port: u16, rtcp_port: u16) -> String {
+    pub fn screen(
+        codec: VideoCodec,
+        params: &CodecParameters,
+        port: u16,
+        rtcp_port: u16,
+    ) -> String {
         let mut fmtp = Vec::new();
-        if let Some(p) = &params.profile_id { fmtp.push(format!("profile-id={}", p)); }
-        if let Some(p) = &params.level_id { fmtp.push(format!("level-id={}", p)); }
+        if let Some(p) = &params.profile_id {
+            fmtp.push(format!("profile-id={}", p));
+        }
+        if let Some(p) = &params.level_id {
+            fmtp.push(format!("level-id={}", p));
+        }
 
         format!(
             "m=video {} RTP/SAVPF {}\n\

@@ -7,16 +7,22 @@
 //! - ChaCha20-Poly1305 for AEAD
 
 use crate::{
-    domain, sizes, hybrid_kem::{HybridKem, HybridKemKeypair, HybridKemCiphertext, HybridKemSharedSecret, HybridKemPublicKey},
+    domain,
+    hybrid_kem::{
+        HybridKem, HybridKemCiphertext, HybridKemKeypair, HybridKemPublicKey, HybridKemSharedSecret,
+    },
     hybrid_sign::{HybridSign, HybridSignKeypair, HybridSignature, HybridVerifyKey},
-    CryptoError, Result,
+    sizes, CryptoError, Result,
 };
 use anyhow::Context;
-use snow::{Builder, HandshakeState, TransportState, Keypair, Dh, Cipher, Hash};
-use chacha20poly1305::{ChaCha20Poly1305, KeyInit, aead::{Aead, Payload}};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use chacha20poly1305::{
+    aead::{Aead, Payload},
+    ChaCha20Poly1305, KeyInit,
+};
 use serde::{Deserialize, Serialize};
+use snow::{Builder, Cipher, Dh, HandshakeState, Hash, Keypair, TransportState};
 use std::fmt;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Noise protocol name
 const NOISE_PROTOCOL: &str = "Noise_IK_ChaChaPoly_BLAKE3s_HybridKEM_HybridSig";
@@ -42,7 +48,9 @@ impl NoiseSession {
 
         // Build handshake state with local static keys
         let mut handshake = builder
-            .local_private_key(&HybridKem::secret_key_to_bytes(&local_static_kem.secret_key()))
+            .local_private_key(&HybridKem::secret_key_to_bytes(
+                &local_static_kem.secret_key(),
+            ))
             .build_initiator()?;
 
         // Write message 1: e, es, s, ss
@@ -81,7 +89,9 @@ impl NoiseSession {
         let builder = Builder::new(NOISE_PROTOCOL.parse().unwrap());
 
         let mut handshake = builder
-            .local_private_key(&HybridKem::secret_key_to_bytes(&local_static_kem.secret_key()))
+            .local_private_key(&HybridKem::secret_key_to_bytes(
+                &local_static_kem.secret_key(),
+            ))
             .build_responder()?;
 
         // Read msg1, write msg2, read msg3
@@ -235,32 +245,76 @@ impl NoiseTransport {
 pub struct HybridDh;
 
 impl Dh for HybridDh {
-    fn name(&self) -> &'static str { "HybridKEM" }
-    fn pub_len(&self) -> usize { sizes::HYBRID_KEM_PUBLIC }
-    fn priv_len(&self) -> usize { sizes::HYBRID_KEM_PRIVATE }
-    fn set(&mut self, _privkey: &[u8]) -> Result<(), snow::Error> { Ok(()) }
-    fn generate(&mut self, _rng: &mut dyn rand::RngCore) -> Result<(), snow::Error> { Ok(()) }
-    fn pubkey(&self) -> &[u8] { &[] }
-    fn privkey(&self) -> &[u8] { &[] }
-    fn dh(&self, _pubkey: &[u8], _out: &mut [u8]) -> Result<(), snow::Error> { Ok(()) }
+    fn name(&self) -> &'static str {
+        "HybridKEM"
+    }
+    fn pub_len(&self) -> usize {
+        sizes::HYBRID_KEM_PUBLIC
+    }
+    fn priv_len(&self) -> usize {
+        sizes::HYBRID_KEM_PRIVATE
+    }
+    fn set(&mut self, _privkey: &[u8]) -> Result<(), snow::Error> {
+        Ok(())
+    }
+    fn generate(&mut self, _rng: &mut dyn rand::RngCore) -> Result<(), snow::Error> {
+        Ok(())
+    }
+    fn pubkey(&self) -> &[u8] {
+        &[]
+    }
+    fn privkey(&self) -> &[u8] {
+        &[]
+    }
+    fn dh(&self, _pubkey: &[u8], _out: &mut [u8]) -> Result<(), snow::Error> {
+        Ok(())
+    }
 }
 
 /// Custom cipher: ChaCha20-Poly1305
 pub struct HybridCipher;
 
 impl Cipher for HybridCipher {
-    fn name(&self) -> &'static str { "ChaChaPoly" }
-    fn key_len(&self) -> usize { sizes::CHACHA20POLY1305_KEY }
-    fn set_key(&mut self, _key: &[u8]) -> Result<(), snow::Error> { Ok(()) }
-    fn encrypt(&mut self, _nonce: u64, _authtext: &[u8], _plaintext: &[u8], _ciphertext: &mut [u8]) -> Result<usize, snow::Error> { Ok(0) }
-    fn decrypt(&mut self, _nonce: u64, _authtext: &[u8], _ciphertext: &[u8], _plaintext: &mut [u8]) -> Result<usize, snow::Error> { Ok(0) }
+    fn name(&self) -> &'static str {
+        "ChaChaPoly"
+    }
+    fn key_len(&self) -> usize {
+        sizes::CHACHA20POLY1305_KEY
+    }
+    fn set_key(&mut self, _key: &[u8]) -> Result<(), snow::Error> {
+        Ok(())
+    }
+    fn encrypt(
+        &mut self,
+        _nonce: u64,
+        _authtext: &[u8],
+        _plaintext: &[u8],
+        _ciphertext: &mut [u8],
+    ) -> Result<usize, snow::Error> {
+        Ok(0)
+    }
+    fn decrypt(
+        &mut self,
+        _nonce: u64,
+        _authtext: &[u8],
+        _ciphertext: &[u8],
+        _plaintext: &mut [u8],
+    ) -> Result<usize, snow::Error> {
+        Ok(0)
+    }
 }
 
 /// Custom hash: BLAKE3
 pub struct HybridHash;
 
 impl Hash for HybridHash {
-    fn name(&self) -> &'static str { "BLAKE3s" }
-    fn hash_len(&self) -> usize { 32 }
-    fn hash(&self, _input: &[u8], _output: &mut [u8]) -> Result<(), snow::Error> { Ok(()) }
+    fn name(&self) -> &'static str {
+        "BLAKE3s"
+    }
+    fn hash_len(&self) -> usize {
+        32
+    }
+    fn hash(&self, _input: &[u8], _output: &mut [u8]) -> Result<(), snow::Error> {
+        Ok(())
+    }
 }

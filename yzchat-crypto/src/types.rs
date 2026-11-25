@@ -2,8 +2,8 @@
 
 use crate::sizes;
 use serde::{Deserialize, Serialize};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 use std::fmt;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Identity public key (hybrid sign verify key)
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Zeroize, ZeroizeOnDrop)]

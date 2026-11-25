@@ -18,22 +18,22 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, clippy::all)]
 
-pub mod endpoint;
+pub mod blobs;
 pub mod discovery;
+pub mod docs;
+pub mod endpoint;
+pub mod error;
 pub mod router;
 pub mod signaling;
-pub mod blobs;
-pub mod docs;
-pub mod error;
 pub mod types;
 
+pub use blobs::{BlobConfig, BlobStore, BlobTransfer};
+pub use discovery::{DiscoveredPeer, Discovery, DiscoveryConfig};
+pub use docs::{DocConfig, DocStore, Document};
+pub use endpoint::{EndpointConfig, NodeEndpoint};
 pub use error::{P2pError, Result};
-pub use endpoint::{NodeEndpoint, EndpointConfig};
-pub use discovery::{Discovery, DiscoveryConfig, DiscoveredPeer};
-pub use router::{Router, RouterConfig, IncomingMessage, OutgoingMessage};
-pub use signaling::{Signaling, SignalingConfig, IceCandidate, SdpOffer, SdpAnswer};
-pub use blobs::{BlobStore, BlobConfig, BlobTransfer};
-pub use docs::{DocStore, DocConfig, Document};
+pub use router::{IncomingMessage, OutgoingMessage, Router, RouterConfig};
+pub use signaling::{IceCandidate, SdpAnswer, SdpOffer, Signaling, SignalingConfig};
 pub use types::*;
 
 /// Protocol ALPN for yzchat

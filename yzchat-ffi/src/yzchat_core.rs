@@ -1,12 +1,8 @@
 //! YzchatCore: Main entry point for the FFI layer
 
 use crate::{
-    crypto_manager::CryptoManager,
-    p2p_manager::P2PManager,
-    media_manager::MediaManager,
-    storage_manager::StorageManager,
-    types::*,
-    callbacks::*,
+    callbacks::*, crypto_manager::CryptoManager, media_manager::MediaManager,
+    p2p_manager::P2PManager, storage_manager::StorageManager, types::*,
 };
 use anyhow::{Context, Result};
 use std::path::PathBuf;
@@ -98,7 +94,8 @@ impl YzchatCore {
         // Initialize P2P
         let p2p_config = yzchat_p2p::endpoint::EndpointConfig::default();
         let endpoint = Arc::new(yzchat_p2p::endpoint::NodeEndpoint::new(p2p_config).await?);
-        let p2p_manager = P2PManager::new(endpoint, self.crypto.clone(), self.storage.clone()).await?;
+        let p2p_manager =
+            P2PManager::new(endpoint, self.crypto.clone(), self.storage.clone()).await?;
         *self.p2p.lock().await = Some(p2p_manager);
 
         // Initialize media
@@ -137,12 +134,22 @@ impl YzchatCore {
 
     /// Get P2P manager
     pub async fn p2p(&self) -> Arc<P2PManager> {
-        self.p2p.lock().await.as_ref().expect("P2P not initialized").clone()
+        self.p2p
+            .lock()
+            .await
+            .as_ref()
+            .expect("P2P not initialized")
+            .clone()
     }
 
     /// Get media manager
     pub async fn media(&self) -> Arc<MediaManager> {
-        self.media.lock().await.as_ref().expect("Media not initialized").clone()
+        self.media
+            .lock()
+            .await
+            .as_ref()
+            .expect("Media not initialized")
+            .clone()
     }
 
     /// Get storage manager
@@ -158,7 +165,9 @@ impl YzchatCore {
     pub async fn register_user(&self, display_name: String) -> Result<IdentityPublicKey> {
         let (public, secret) = self.crypto.generate_identity().await?;
         self.storage.save_identity(secret).await?;
-        self.storage.save_setting("display_name".to_string(), display_name).await?;
+        self.storage
+            .save_setting("display_name".to_string(), display_name)
+            .await?;
         Ok(public)
     }
 
@@ -175,7 +184,10 @@ impl YzchatCore {
 
     /// Check if logged in
     pub async fn is_logged_in(&self) -> bool {
-        self.storage.load_identity().await.is_ok_and(|k| k.is_some())
+        self.storage
+            .load_identity()
+            .await
+            .is_ok_and(|k| k.is_some())
     }
 
     // Contacts
@@ -191,39 +203,55 @@ impl YzchatCore {
         self.storage.load_contacts().await
     }
 
-    pub async fn update_contact_alias(&self, identity: IdentityPublicKey, alias: String) -> Result<()> {
+    pub async fn update_contact_alias(
+        &self,
+        identity: IdentityPublicKey,
+        alias: String,
+    ) -> Result<()> {
         self.storage.update_contact_alias(identity, alias).await
     }
 
     // Conversations
-    pub async fn create_conversation(&self, participants: Vec<IdentityPublicKey>) -> Result<String> {
+    pub async fn create_conversation(
+        &self,
+        participants: Vec<IdentityPublicKey>,
+    ) -> Result<String> {
         let conversation_id = Uuid::new_v4().to_string();
-        self.storage.create_conversation(conversation_id.clone(), participants).await?;
+        self.storage
+            .create_conversation(conversation_id.clone(), participants)
+            .await?;
         Ok(conversation_id)
     }
 
     pub async fn send_message(&self, conversation_id: String, text: String) -> Result<()> {
-        let identity = self.storage.load_identity().await?
+        let identity = self
+            .storage
+            .load_identity()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-        let conversation = self.storage.get_conversation(&conversation_id).await?
+        let conversation = self
+            .storage
+            .get_conversation(&conversation_id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Conversation not found"))?;
 
         // Encrypt for each participant
         for participant in conversation.participants {
             if participant != identity.public_key() {
                 let bundle = self.crypto.get_key_bundle(&participant).await?;
-                let message = self.crypto.encrypt_message(
-                    &identity,
-                    bundle,
-                    text.as_bytes(),
-                    MessageType::Message,
-                ).await?;
+                let message = self
+                    .crypto
+                    .encrypt_message(&identity, bundle, text.as_bytes(), MessageType::Message)
+                    .await?;
                 // Send via P2P
-                self.p2p().await.send_message(
-                    participant.node_id(),
-                    yzchat_p2p::protocols::MESSAGING,
-                    serde_json::to_vec(&message)?,
-                ).await?;
+                self.p2p()
+                    .await
+                    .send_message(
+                        participant.node_id(),
+                        yzchat_p2p::protocols::MESSAGING,
+                        serde_json::to_vec(&message)?,
+                    )
+                    .await?;
             }
         }
 
@@ -237,15 +265,26 @@ impl YzchatCore {
     }
 
     pub async fn mark_read(&self, conversation_id: String, message_id: String) -> Result<()> {
-        self.storage.mark_message_read(conversation_id, message_id).await
+        self.storage
+            .mark_message_read(conversation_id, message_id)
+            .await
     }
 
     // Groups
-    pub async fn create_group(&self, name: String, members: Vec<IdentityPublicKey>) -> Result<String> {
+    pub async fn create_group(
+        &self,
+        name: String,
+        members: Vec<IdentityPublicKey>,
+    ) -> Result<String> {
         let group_id = Uuid::new_v4().to_string();
-        let identity = self.storage.load_identity().await?
+        let identity = self
+            .storage
+            .load_identity()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Not logged in"))?;
-        self.storage.create_group(group_id.clone(), name, identity.public_key(), members).await?;
+        self.storage
+            .create_group(group_id.clone(), name, identity.public_key(), members)
+            .await?;
         Ok(group_id)
     }
 
@@ -267,13 +306,20 @@ impl YzchatCore {
     }
 
     // Calls
-    pub async fn start_call(&self, remote_identity: IdentityPublicKey, session_type: MediaSessionType) -> Result<String> {
+    pub async fn start_call(
+        &self,
+        remote_identity: IdentityPublicKey,
+        session_type: MediaSessionType,
+    ) -> Result<String> {
         let call_id = Uuid::new_v4().to_string();
         let p2p = self.p2p().await;
         let media = self.media().await;
 
         // Get remote node ID from identity
-        let remote_node = self.storage.get_node_id_for_identity(&remote_identity).await?
+        let remote_node = self
+            .storage
+            .get_node_id_for_identity(&remote_identity)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Unknown contact"))?;
 
         // Create signaling session
@@ -313,7 +359,11 @@ impl YzchatCore {
     }
 
     pub fn on_call(&self, callback: Box<dyn CallEventCallback>) {
-        self.media.lock().await.as_ref().map(|m| m.set_call_callback(callback));
+        self.media
+            .lock()
+            .await
+            .as_ref()
+            .map(|m| m.set_call_callback(callback));
     }
 
     pub fn on_contact(&self, callback: Box<dyn ContactEventCallback>) {
@@ -321,6 +371,10 @@ impl YzchatCore {
     }
 
     pub fn on_connection_change(&self, callback: Box<dyn ConnectionChangeCallback>) {
-        self.p2p.lock().await.as_ref().map(|p| p.set_connection_callback(callback));
+        self.p2p
+            .lock()
+            .await
+            .as_ref()
+            .map(|p| p.set_connection_callback(callback));
     }
 }

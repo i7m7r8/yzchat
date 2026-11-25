@@ -1,9 +1,9 @@
 //! Common types for yzchat-p2p
 
-use iroh::NodeId;
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use iroh::NodeId;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 /// Peer information
 #[derive(Clone, Debug, Serialize, Deserialize)]

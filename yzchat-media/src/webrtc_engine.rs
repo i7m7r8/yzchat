@@ -1,25 +1,25 @@
 //! WebRTC Engine: Peer connections, ICE, DTLS-SRTP, data channels
 
-use crate::{MediaError, Result, codec_prefs};
+use crate::{codec_prefs, MediaError, Result};
 use anyhow::Context;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock, Mutex};
+use tokio::sync::{mpsc, Mutex, RwLock};
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 use webrtc::api::{APIBuilder, API};
+use webrtc::data_channel::RTCDataChannel;
+use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
+use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::peer_connection::configuration::Configuration;
 use webrtc::peer_connection::peer_connection_state::PeerConnectionState;
 use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 use webrtc::peer_connection::RTCPeerConnection;
-use webrtc::ice_transport::ice_candidate::RTCIceCandidateInit;
-use webrtc::ice_transport::ice_server::RTCIceServer;
-use webrtc::data_channel::RTCDataChannel;
-use webrtc::track::track_local::TrackLocal;
-use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
-use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
 use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::rtp_transceiver::RTCRtpTransceiver;
-use uuid::Uuid;
-use tracing::{info, debug, warn, error};
+use webrtc::track::track_local::track_local_static_rtp::TrackLocalStaticRTP;
+use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
+use webrtc::track::track_local::TrackLocal;
 
 /// WebRTC configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -73,8 +73,8 @@ impl Default for WebRtcConfig {
             bundle_policy: BundlePolicy::MaxBundle,
             rtcp_mux_policy: RtcpMuxPolicy::Require,
             ice_candidate_pool_size: 10,
-            audio_bitrate: 510_000,    // 510 kbps Opus
-            video_bitrate: 25_000_000, // 25 Mbps for 4K
+            audio_bitrate: 510_000,     // 510 kbps Opus
+            video_bitrate: 25_000_000,  // 25 Mbps for 4K
             screen_bitrate: 50_000_000, // 50 Mbps for 4K screen
         }
     }
@@ -124,27 +124,44 @@ impl PeerConnection {
         let api = APIBuilder::new().build();
 
         let rtc_config = Configuration {
-            ice_servers: config.ice_servers.iter().map(|s| RTCIceServer {
-                urls: s.urls.clone(),
-                username: s.username.clone(),
-                credential: s.credential.clone(),
-                ..Default::default()
-            }).collect(),
-            ice_transport_policy: webrtc::peer_connection::configuration::RTCIceTransportPolicy::All,
+            ice_servers: config
+                .ice_servers
+                .iter()
+                .map(|s| RTCIceServer {
+                    urls: s.urls.clone(),
+                    username: s.username.clone(),
+                    credential: s.credential.clone(),
+                    ..Default::default()
+                })
+                .collect(),
+            ice_transport_policy:
+                webrtc::peer_connection::configuration::RTCIceTransportPolicy::All,
             bundle_policy: match config.bundle_policy {
-                BundlePolicy::Balanced => webrtc::peer_connection::configuration::RTCBundlePolicy::Balanced,
-                BundlePolicy::MaxCompat => webrtc::peer_connection::configuration::RTCBundlePolicy::MaxCompat,
-                BundlePolicy::MaxBundle => webrtc::peer_connection::configuration::RTCBundlePolicy::MaxBundle,
+                BundlePolicy::Balanced => {
+                    webrtc::peer_connection::configuration::RTCBundlePolicy::Balanced
+                }
+                BundlePolicy::MaxCompat => {
+                    webrtc::peer_connection::configuration::RTCBundlePolicy::MaxCompat
+                }
+                BundlePolicy::MaxBundle => {
+                    webrtc::peer_connection::configuration::RTCBundlePolicy::MaxBundle
+                }
             },
             rtcp_mux_policy: match config.rtcp_mux_policy {
-                RtcpMuxPolicy::Negotiate => webrtc::peer_connection::configuration::RTCRtcpMuxPolicy::Negotiate,
-                RtcpMuxPolicy::Require => webrtc::peer_connection::configuration::RTCRtcpMuxPolicy::Require,
+                RtcpMuxPolicy::Negotiate => {
+                    webrtc::peer_connection::configuration::RTCRtcpMuxPolicy::Negotiate
+                }
+                RtcpMuxPolicy::Require => {
+                    webrtc::peer_connection::configuration::RTCRtcpMuxPolicy::Require
+                }
             },
             ice_candidate_pool_size: config.ice_candidate_pool_size,
             ..Default::default()
         };
 
-        let pc = api.new_peer_connection(rtc_config).await
+        let pc = api
+            .new_peer_connection(rtc_config)
+            .await
             .context("Failed to create peer connection")?;
 
         let pc = Arc::new(pc);
@@ -207,7 +224,10 @@ impl PeerConnection {
             let data_channels = data_channels.clone();
             let on_data_channel = on_data_channel.clone();
             tokio::spawn(async move {
-                data_channels.write().await.insert(label.clone(), dc.clone());
+                data_channels
+                    .write()
+                    .await
+                    .insert(label.clone(), dc.clone());
                 if let Some(cb) = on_data_channel {
                     cb(dc);
                 }
@@ -270,34 +290,57 @@ impl PeerConnection {
     }
 
     /// Add audio track
-    pub async fn add_audio_track(&self, track: Arc<TrackLocalStaticSample>) -> Result<Arc<RTCRtpTransceiver>> {
+    pub async fn add_audio_track(
+        &self,
+        track: Arc<TrackLocalStaticSample>,
+    ) -> Result<Arc<RTCRtpTransceiver>> {
         let transceiver = self.pc.add_track(track.clone()).await?;
         self.tracks.write().await.insert(track.id(), track);
         Ok(transceiver)
     }
 
     /// Add video track
-    pub async fn add_video_track(&self, track: Arc<TrackLocalStaticSample>) -> Result<Arc<RTCRtpTransceiver>> {
+    pub async fn add_video_track(
+        &self,
+        track: Arc<TrackLocalStaticSample>,
+    ) -> Result<Arc<RTCRtpTransceiver>> {
         let transceiver = self.pc.add_track(track.clone()).await?;
         self.tracks.write().await.insert(track.id(), track);
         Ok(transceiver)
     }
 
     /// Add screen track
-    pub async fn add_screen_track(&self, track: Arc<TrackLocalStaticSample>) -> Result<Arc<RTCRtpTransceiver>> {
+    pub async fn add_screen_track(
+        &self,
+        track: Arc<TrackLocalStaticSample>,
+    ) -> Result<Arc<RTCRtpTransceiver>> {
         let transceiver = self.pc.add_track(track.clone()).await?;
         self.tracks.write().await.insert(track.id(), track);
         Ok(transceiver)
     }
 
     /// Create data channel
-    pub async fn create_data_channel(&self, label: &str, ordered: bool, max_retransmits: Option<u16>) -> Result<Arc<RTCDataChannel>> {
-        let dc = self.pc.create_data_channel(label, Some(webrtc::data_channel::RTCDataChannelInit {
-            ordered: Some(ordered),
-            max_retransmits,
-            ..Default::default()
-        })).await?;
-        self.data_channels.write().await.insert(label.to_string(), dc.clone());
+    pub async fn create_data_channel(
+        &self,
+        label: &str,
+        ordered: bool,
+        max_retransmits: Option<u16>,
+    ) -> Result<Arc<RTCDataChannel>> {
+        let dc = self
+            .pc
+            .create_data_channel(
+                label,
+                Some(webrtc::data_channel::RTCDataChannelInit {
+                    ordered: Some(ordered),
+                    max_retransmits,
+                    ..Default::default()
+                }),
+            )
+            .await?;
+        self.data_channels
+            .write()
+            .await
+            .insert(label.to_string(), dc.clone());
         Ok(dc)
     }
 
@@ -382,7 +425,10 @@ impl WebRtcEngine {
     pub async fn create_peer_connection(&self, connection_id: Uuid) -> Result<Arc<PeerConnection>> {
         let pc = PeerConnection::new(self.config.clone()).await?;
         let pc = Arc::new(pc);
-        self.connections.write().await.insert(connection_id, pc.clone());
+        self.connections
+            .write()
+            .await
+            .insert(connection_id, pc.clone());
         Ok(pc)
     }
 

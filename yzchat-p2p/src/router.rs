@@ -1,17 +1,17 @@
 //! Message Router: Connection management, message routing, protocol multiplexing
 
-use crate::{P2pError, Result, NodeId, ALPN_YZCHAT, MAX_MESSAGE_SIZE};
+use crate::{NodeId, P2pError, Result, ALPN_YZCHAT, MAX_MESSAGE_SIZE};
 use anyhow::Context;
-use iroh::{Endpoint, Connection, NodeAddr};
+use iroh::{Connection, Endpoint, NodeAddr};
 use iroh_net::protocol::Router as IrohRouter;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, RwLock, Mutex};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::timeout;
-use tracing::{info, debug, warn, error};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
 
 /// Router configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -98,7 +98,10 @@ pub struct Router {
 
 impl Router {
     /// Create new router
-    pub fn new(endpoint: Arc<Endpoint>, config: RouterConfig) -> (Self, mpsc::Receiver<OutgoingMessage>) {
+    pub fn new(
+        endpoint: Arc<Endpoint>,
+        config: RouterConfig,
+    ) -> (Self, mpsc::Receiver<OutgoingMessage>) {
         let (outbox_tx, outbox_rx) = mpsc::channel(config.message_queue_size);
         let (inbox_tx, inbox_rx) = mpsc::channel(config.message_queue_size);
         let local_node_id = endpoint.node_id();
@@ -158,8 +161,15 @@ impl Router {
 
                         tokio::spawn(async move {
                             match Self::handle_incoming_connection(
-                                incoming, handlers, connections, inbox_tx, config, local_node_id
-                            ).await {
+                                incoming,
+                                handlers,
+                                connections,
+                                inbox_tx,
+                                config,
+                                local_node_id,
+                            )
+                            .await
+                            {
                                 Ok(_) => debug!("Connection handled successfully"),
                                 Err(e) => warn!("Connection error: {}", e),
                             }
@@ -193,7 +203,10 @@ impl Router {
         let remote_node_id = connection.remote_node_id()?;
         let protocol = connection.protocol().to_string();
 
-        info!("Incoming connection from {} on protocol {}", remote_node_id, protocol);
+        info!(
+            "Incoming connection from {} on protocol {}",
+            remote_node_id, protocol
+        );
 
         // Check connection limit
         {
@@ -213,7 +226,12 @@ impl Router {
             last_activity: chrono::Utc::now(),
             protocol: protocol.clone(),
         };
-        connections.write().await.entry(remote_node_id).or_default().push(conn_info);
+        connections
+            .write()
+            .await
+            .entry(remote_node_id)
+            .or_default()
+            .push(conn_info);
 
         // Notify handler
         if let Some(handler) = handlers.read().await.get(&protocol) {
@@ -278,9 +296,13 @@ impl Router {
         }
 
         // Cleanup
-        connections.write().await.entry(remote_node_id).and_modify(|v| {
-            v.retain(|c| c.connection.stable_id() != connection.stable_id());
-        });
+        connections
+            .write()
+            .await
+            .entry(remote_node_id)
+            .and_modify(|v| {
+                v.retain(|c| c.connection.stable_id() != connection.stable_id());
+            });
         if let Some(handler) = handlers.read().await.get(&protocol) {
             handler.on_disconnect(remote_node_id)?;
         }
@@ -313,11 +335,11 @@ impl Router {
         config: &RouterConfig,
     ) -> Result<()> {
         let conns = connections.read().await;
-        let peer_conns = conns.get(&msg.to)
-            .ok_or(P2pError::PeerNotConnected)?;
+        let peer_conns = conns.get(&msg.to).ok_or(P2pError::PeerNotConnected)?;
 
         // Find connection with matching protocol
-        let conn = peer_conns.iter()
+        let conn = peer_conns
+            .iter()
             .find(|c| c.protocol == msg.protocol)
             .or_else(|| peer_conns.first())
             .ok_or(P2pError::NoSuitableConnection)?;
@@ -326,15 +348,20 @@ impl Router {
         let mut writer = conn.connection.writer();
         timeout(
             Duration::from_secs(config.handshake_timeout_secs),
-            writer.write_message(&msg.payload)
-        ).await??;
+            writer.write_message(&msg.payload),
+        )
+        .await??;
 
         Ok(())
     }
 
     /// Send a message (public API)
     pub async fn send(&self, msg: OutgoingMessage) -> Result<()> {
-        self.outbox.lock().await.send(msg).await
+        self.outbox
+            .lock()
+            .await
+            .send(msg)
+            .await
             .map_err(|_| P2pError::ChannelClosed)?;
         Ok(())
     }
@@ -345,7 +372,12 @@ impl Router {
     }
 
     /// Connect to a peer and send a message
-    pub async fn connect_and_send(&self, node_id: NodeId, protocol: &str, payload: Vec<u8>) -> Result<()> {
+    pub async fn connect_and_send(
+        &self,
+        node_id: NodeId,
+        protocol: &str,
+        payload: Vec<u8>,
+    ) -> Result<()> {
         let connection = self.endpoint.connect(node_id, protocol.as_bytes()).await?;
         let mut writer = connection.writer();
         writer.write_message(&payload).await?;

@@ -1,17 +1,17 @@
 //! Peer Discovery: DHT + mDNS + N0
 
-use crate::{P2pError, Result, NodeId};
+use crate::{NodeId, P2pError, Result};
 use anyhow::Context;
 use iroh::Endpoint;
-use iroh_net::discovery::{dht::DhtDiscovery, mdns::MdnsDiscovery, n0::N0Discovery};
 use iroh_net::discovery::Discovery as DiscoveryTrait;
+use iroh_net::discovery::{dht::DhtDiscovery, mdns::MdnsDiscovery, n0::N0Discovery};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::interval;
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 /// Discovery configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -88,17 +88,23 @@ impl Discovery {
                 dht.add_node_addr(*node_id, *addr).await?;
             }
             Some(Arc::new(dht))
-        } else { None };
+        } else {
+            None
+        };
 
         // Initialize mDNS
         let mdns = if config.enable_mdns {
             Some(Arc::new(MdnsDiscovery::new(endpoint.clone()).await?))
-        } else { None };
+        } else {
+            None
+        };
 
         // Initialize N0
         let n0 = if config.enable_n0 {
             Some(Arc::new(N0Discovery::new(endpoint.clone()).await?))
-        } else { None };
+        } else {
+            None
+        };
 
         Ok(Self {
             endpoint,
@@ -123,9 +129,9 @@ impl Discovery {
             let mut interval = interval(Duration::from_secs(config.interval_secs));
             loop {
                 interval.tick().await;
-                if let Err(e) = Self::discover_peers(
-                    &peers, &dht, &mdns, &n0, &endpoint, &config
-                ).await {
+                if let Err(e) =
+                    Self::discover_peers(&peers, &dht, &mdns, &n0, &endpoint, &config).await
+                {
                     warn!("Discovery error: {}", e);
                 }
                 // Cleanup stale peers
@@ -196,7 +202,8 @@ impl Discovery {
             if peers_map.len() >= config.max_peers {
                 break;
             }
-            peers_map.entry(peer.node_id)
+            peers_map
+                .entry(peer.node_id)
                 .and_modify(|p| {
                     p.addresses.extend(peer.addresses.clone());
                     p.addresses.sort();
@@ -241,20 +248,26 @@ impl Discovery {
         if peers.len() >= self.config.max_peers {
             return Err(P2pError::MaxPeersReached);
         }
-        peers.insert(node_id, DiscoveredPeer {
+        peers.insert(
             node_id,
-            addresses,
-            source: DiscoverySource::Manual,
-            last_seen: chrono::Utc::now(),
-            metadata: HashMap::new(),
-        });
+            DiscoveredPeer {
+                node_id,
+                addresses,
+                source: DiscoverySource::Manual,
+                last_seen: chrono::Utc::now(),
+                metadata: HashMap::new(),
+            },
+        );
         Ok(())
     }
 
     /// Announce ourselves to the network
     pub async fn announce(&self) -> Result<()> {
         if let Some(dht) = &self.dht {
-            let addrs = self.endpoint.node_addr().await?
+            let addrs = self
+                .endpoint
+                .node_addr()
+                .await?
                 .direct_addresses()
                 .iter()
                 .filter_map(|a| a.to_socket_addr())

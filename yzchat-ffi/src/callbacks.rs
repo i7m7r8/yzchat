@@ -30,7 +30,13 @@ pub trait ConnectionChangeCallback: Send + Sync {
 /// Incoming call callback
 #[uniffi::callback(interface = "IncomingCallCallback")]
 pub trait IncomingCallCallback: Send + Sync {
-    fn on_incoming_call(&self, call_id: String, from: Vec<u8>, session_type: MediaSessionType, quality: MediaQuality);
+    fn on_incoming_call(
+        &self,
+        call_id: String,
+        from: Vec<u8>,
+        session_type: MediaSessionType,
+        quality: MediaQuality,
+    );
 }
 
 /// Media stats callback

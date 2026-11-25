@@ -1,6 +1,6 @@
 //! Screen Share Engine: High-resolution screen capture and encoding
 
-use crate::{MediaError, Result, VideoConfig, VideoCodec, VideoColorFormat, LatencyMode};
+use crate::{LatencyMode, MediaError, Result, VideoCodec, VideoColorFormat, VideoConfig};
 use anyhow::Context;
 use gstreamer as gst;
 use gstreamer::prelude::*;
@@ -9,7 +9,7 @@ use gstreamer_video as gst_video;
 use rav1e::{Encoder as Av1Encoder, EncoderConfig as Av1Config};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 /// Screen share configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -81,8 +81,8 @@ impl ScreenTrack {
         av1_config.low_latency = true;
         av1_config.tiles = 4; // Parallel encoding
 
-        let av1_encoder = Av1Encoder::new(av1_config)
-            .context("Failed to create AV1 encoder for screen")?;
+        let av1_encoder =
+            Av1Encoder::new(av1_config).context("Failed to create AV1 encoder for screen")?;
 
         Ok(Self {
             config,
@@ -130,7 +130,12 @@ impl ScreenTrack {
     }
 
     /// RGB to I420 conversion (simplified)
-    fn rgb_to_i420(rgb: &[u8], width: usize, height: usize, stride: usize) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+    fn rgb_to_i420(
+        rgb: &[u8],
+        width: usize,
+        height: usize,
+        stride: usize,
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         let y_size = width * height;
         let uv_size = (width / 2) * (height / 2);
         let mut y = vec![0u8; y_size];
@@ -141,7 +146,9 @@ impl ScreenTrack {
         for y_idx in 0..height {
             for x_idx in 0..width {
                 let src_idx = y_idx * stride + x_idx * 4;
-                if src_idx + 2 >= rgb.len() { continue; }
+                if src_idx + 2 >= rgb.len() {
+                    continue;
+                }
                 let r = rgb[src_idx] as f32;
                 let g = rgb[src_idx + 1] as f32;
                 let b = rgb[src_idx + 2] as f32;
@@ -176,15 +183,20 @@ pub struct ScreenCapture {
 
 impl ScreenCapture {
     /// Create new screen capture
-    pub async fn new(config: ScreenShareConfig) -> Result<(Self, mpsc::Receiver<(Vec<u8>, usize)>)> {
+    pub async fn new(
+        config: ScreenShareConfig,
+    ) -> Result<(Self, mpsc::Receiver<(Vec<u8>, usize)>)> {
         let (frame_tx, frame_rx) = mpsc::channel(30);
 
-        Ok((Self {
-            config,
-            pipeline: None,
-            appsink: None,
-            frame_tx,
-        }, frame_rx))
+        Ok((
+            Self {
+                config,
+                pipeline: None,
+                appsink: None,
+                frame_tx,
+            },
+            frame_rx,
+        ))
     }
 
     /// Start capture
@@ -228,7 +240,11 @@ impl ScreenCapture {
                  videoconvert ! \
                  video/x-raw,format=RGBA ! \
                  appsink name=sink emit-signals=true max-buffers=5 drop=true",
-                source, x, x + w as i32, y, y + h as i32,
+                source,
+                x,
+                x + w as i32,
+                y,
+                y + h as i32,
                 self.config.video.width / self.config.downscale,
                 self.config.video.height / self.config.downscale
             );
@@ -239,7 +255,8 @@ impl ScreenCapture {
             .downcast::<gst::Pipeline>()
             .map_err(|_| MediaError::PipelineCreationFailed)?;
 
-        let appsink = pipeline.by_name("sink")
+        let appsink = pipeline
+            .by_name("sink")
             .ok_or(MediaError::ElementNotFound("appsink".into()))?
             .downcast::<gst_app::AppSink>()
             .map_err(|_| MediaError::ElementCastFailed)?;
@@ -263,7 +280,8 @@ impl ScreenCapture {
                 .build(),
         );
 
-        pipeline.set_state(gst::State::Playing)
+        pipeline
+            .set_state(gst::State::Playing)
             .context("Failed to start pipeline")?;
 
         self.pipeline = Some(pipeline);
@@ -315,7 +333,9 @@ impl ScreenShareEngine {
 
     /// Start
     pub async fn start(&mut self) -> Result<()> {
-        if self.running { return Ok(()); }
+        if self.running {
+            return Ok(());
+        }
 
         self.capture.as_mut().unwrap().start().await?;
         self.running = true;
@@ -336,7 +356,9 @@ impl ScreenShareEngine {
 
     /// Stop
     pub async fn stop(&mut self) -> Result<()> {
-        if !self.running { return Ok(()); }
+        if !self.running {
+            return Ok(());
+        }
         self.capture.as_mut().unwrap().stop().await?;
         self.running = false;
         Ok(())

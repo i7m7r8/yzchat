@@ -3,20 +3,22 @@
 //! Combines classical X25519 ECDH with ML-KEM-768 for quantum resistance.
 //! The shared secret is HKDF(ML-KEM-SS || X25519-SS, salt, info).
 
-use crate::{
-    domain, sizes, random_bytes, constant_time_eq,
-    CryptoError, Result,
-};
+use crate::{constant_time_eq, domain, random_bytes, sizes, CryptoError, Result};
 use anyhow::Context;
-use pqcrypto_kyber::kyber768;
-use pqcrypto_traits::kem::{PublicKey as PqPublicKey, SecretKey as PqSecretKey, Ciphertext as PqCiphertext, SharedSecret as PqSharedSecret};
-use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret as X25519StaticSecret, EphemeralSecret};
+use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit};
 use hkdf::Hkdf;
-use sha2::Sha256;
-use chacha20poly1305::{ChaCha20Poly1305, KeyInit, aead::Aead};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use pqcrypto_kyber::kyber768;
+use pqcrypto_traits::kem::{
+    Ciphertext as PqCiphertext, PublicKey as PqPublicKey, SecretKey as PqSecretKey,
+    SharedSecret as PqSharedSecret,
+};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::fmt;
+use x25519_dalek::{
+    EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret as X25519StaticSecret,
+};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Hybrid KEM public key (ML-KEM-768 || X25519)
 #[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -30,7 +32,10 @@ pub struct HybridKemKeypair {
 impl fmt::Debug for HybridKemKeypair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HybridKemKeypair")
-            .field("kyber_pk", &format_args!("{} bytes", self.kyber_pk.as_bytes().len()))
+            .field(
+                "kyber_pk",
+                &format_args!("{} bytes", self.kyber_pk.as_bytes().len()),
+            )
             .field("x25519_pk", &self.x25519_pk.to_bytes())
             .finish_non_exhaustive()
     }
@@ -46,7 +51,10 @@ pub struct HybridKemCiphertext {
 impl fmt::Debug for HybridKemCiphertext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HybridKemCiphertext")
-            .field("kyber_ct", &format_args!("{} bytes", self.kyber_ct.as_bytes().len()))
+            .field(
+                "kyber_ct",
+                &format_args!("{} bytes", self.kyber_ct.as_bytes().len()),
+            )
             .field("x25519_ephemeral_pk", &self.x25519_ephemeral_pk.to_bytes())
             .finish_non_exhaustive()
     }
@@ -92,7 +100,9 @@ impl HybridKem {
     }
 
     /// Encapsulate to a recipient's public key, producing ciphertext and shared secret
-    pub fn encapsulate(pk: &HybridKemPublicKey) -> Result<(HybridKemCiphertext, HybridKemSharedSecret)> {
+    pub fn encapsulate(
+        pk: &HybridKemPublicKey,
+    ) -> Result<(HybridKemCiphertext, HybridKemSharedSecret)> {
         // ML-KEM encapsulation
         let (kyber_ct, kyber_ss) = kyber768::encapsulate(&pk.kyber_pk);
 
@@ -118,7 +128,10 @@ impl HybridKem {
     }
 
     /// Decapsulate using private key, recovering shared secret
-    pub fn decapsulate(sk: &HybridKemSecretKey, ct: &HybridKemCiphertext) -> Result<HybridKemSharedSecret> {
+    pub fn decapsulate(
+        sk: &HybridKemSecretKey,
+        ct: &HybridKemCiphertext,
+    ) -> Result<HybridKemSharedSecret> {
         // ML-KEM decapsulation
         let kyber_ss = kyber768::decapsulate(&ct.kyber_ct, &sk.kyber_sk)
             .map_err(|_| CryptoError::DecapsulationFailed)?;
@@ -170,9 +183,15 @@ impl HybridKem {
         }
         let kyber_pk = kyber768::PublicKey::from_bytes(&bytes[..sizes::KYBER768_PUBLIC])
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let x25519_pk = X25519PublicKey::from_bytes(bytes[sizes::KYBER768_PUBLIC..].try_into()
-            .map_err(|_| CryptoError::InvalidKeyFormat)?)?;
-        Ok(HybridKemPublicKey { kyber_pk, x25519_pk })
+        let x25519_pk = X25519PublicKey::from_bytes(
+            bytes[sizes::KYBER768_PUBLIC..]
+                .try_into()
+                .map_err(|_| CryptoError::InvalidKeyFormat)?,
+        )?;
+        Ok(HybridKemPublicKey {
+            kyber_pk,
+            x25519_pk,
+        })
     }
 
     /// Serialize secret key to bytes
@@ -193,9 +212,15 @@ impl HybridKem {
         }
         let kyber_sk = kyber768::SecretKey::from_bytes(&bytes[..sizes::KYBER768_PRIVATE])
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let x25519_sk = X25519StaticSecret::from_bytes(bytes[sizes::KYBER768_PRIVATE..].try_into()
-            .map_err(|_| CryptoError::InvalidKeyFormat)?);
-        Ok(HybridKemSecretKey { kyber_sk, x25519_sk })
+        let x25519_sk = X25519StaticSecret::from_bytes(
+            bytes[sizes::KYBER768_PRIVATE..]
+                .try_into()
+                .map_err(|_| CryptoError::InvalidKeyFormat)?,
+        );
+        Ok(HybridKemSecretKey {
+            kyber_sk,
+            x25519_sk,
+        })
     }
 
     /// Serialize ciphertext to bytes
@@ -216,9 +241,15 @@ impl HybridKem {
         }
         let kyber_ct = kyber768::Ciphertext::from_bytes(&bytes[..sizes::KYBER768_CIPHERTEXT])
             .map_err(|_| CryptoError::InvalidCiphertextFormat)?;
-        let x25519_ephemeral_pk = X25519PublicKey::from_bytes(bytes[sizes::KYBER768_CIPHERTEXT..].try_into()
-            .map_err(|_| CryptoError::InvalidCiphertextFormat)?)?;
-        Ok(HybridKemCiphertext { kyber_ct, x25519_ephemeral_pk })
+        let x25519_ephemeral_pk = X25519PublicKey::from_bytes(
+            bytes[sizes::KYBER768_CIPHERTEXT..]
+                .try_into()
+                .map_err(|_| CryptoError::InvalidCiphertextFormat)?,
+        )?;
+        Ok(HybridKemCiphertext {
+            kyber_ct,
+            x25519_ephemeral_pk,
+        })
     }
 }
 
@@ -271,7 +302,9 @@ impl HybridKemKeypair {
         // Verify they match
         let test_ct = HybridKemCiphertext {
             kyber_ct: kyber768::Ciphertext::from_bytes(&[0u8; sizes::KYBER768_CIPHERTEXT]).unwrap(),
-            x25519_ephemeral_pk: X25519PublicKey::from(&X25519StaticSecret::random_from_rng(rand::rngs::OsRng)),
+            x25519_ephemeral_pk: X25519PublicKey::from(&X25519StaticSecret::random_from_rng(
+                rand::rngs::OsRng,
+            )),
         };
         let _ = HybridKem::decapsulate(&sk, &test_ct)?;
 

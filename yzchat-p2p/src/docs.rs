@@ -1,23 +1,23 @@
 //! Document Store: Syncable data structures for contacts, messages, groups
 
-use crate::{P2pError, Result, NodeId};
+use crate::{NodeId, P2pError, Result};
 use anyhow::Context;
+use chrono::{DateTime, Utc};
 use iroh::Endpoint;
-use iroh_docs::{DocTicket, AuthorId, DocId, Doc, Engine, Store as DocsStore};
 use iroh_docs::protocol::DocsProtocol;
 use iroh_docs::rpc::client::docs::DocsClient;
 use iroh_docs::rpc::server::docs::DocsServer;
 use iroh_docs::store::fs::FsStore;
 use iroh_docs::store::mem::MemStore;
 use iroh_docs::sync::SyncMode;
-use std::path::PathBuf;
+use iroh_docs::{AuthorId, Doc, DocId, DocTicket, Engine, Store as DocsStore};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, debug, warn};
-use serde::{Serialize, Deserialize};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 /// Document store configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -160,7 +160,8 @@ impl DocStore {
     /// Set a key-value in a document
     pub async fn set(&self, doc_type: DocType, key: &str, value: &[u8]) -> Result<()> {
         let doc = self.open_doc(doc_type).await?;
-        doc.set_bytes(self.local_author, key.as_bytes(), value).await?;
+        doc.set_bytes(self.local_author, key.as_bytes(), value)
+            .await?;
         Ok(())
     }
 
@@ -181,7 +182,10 @@ impl DocStore {
     pub async fn keys(&self, doc_type: DocType) -> Result<Vec<String>> {
         let doc = self.open_doc(doc_type).await?;
         let entries = doc.get_many(vec![]).await?;
-        Ok(entries.into_iter().map(|e| String::from_utf8_lossy(e.key()).to_string()).collect())
+        Ok(entries
+            .into_iter()
+            .map(|e| String::from_utf8_lossy(e.key()).to_string())
+            .collect())
     }
 
     /// Sync a document with a peer
@@ -208,9 +212,8 @@ impl DocStore {
         let doc_handles = self.doc_handles.clone();
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                tokio::time::Duration::from_secs(config.sync_interval_secs)
-            );
+            let mut interval =
+                tokio::time::interval(tokio::time::Duration::from_secs(config.sync_interval_secs));
 
             loop {
                 interval.tick().await;
@@ -229,7 +232,7 @@ impl DocStore {
         for entry in entries {
             let key = String::from_utf8_lossy(entry.key()).to_string();
             let value = serde_json::from_slice(entry.value()).unwrap_or(serde_json::Value::String(
-                String::from_utf8_lossy(entry.value()).to_string()
+                String::from_utf8_lossy(entry.value()).to_string(),
             ));
             map.insert(key, value);
         }
@@ -242,7 +245,8 @@ impl DocStore {
         if let serde_json::Value::Object(map) = data {
             for (key, value) in map {
                 let bytes = serde_json::to_vec(&value)?;
-                doc.set_bytes(self.local_author, key.as_bytes(), &bytes).await?;
+                doc.set_bytes(self.local_author, key.as_bytes(), &bytes)
+                    .await?;
             }
         }
         Ok(())

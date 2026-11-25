@@ -1,5 +1,6 @@
 //! CryptoManager: FFI wrapper for yzchat-crypto
 
+use crate::storage_manager::StorageManager;
 use crate::types::*;
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -10,17 +11,12 @@ use yzchat_crypto::{
     hybrid_sign::{HybridSign, HybridSignKeypair},
     ratchet::{DoubleRatchet, RatchetState},
     types::*,
-    IdentityPublicKey as CryptoIdentityPublicKey,
-    IdentitySecretKey as CryptoIdentitySecretKey,
-    EncryptionPublicKey as CryptoEncryptionPublicKey,
-    EncryptionSecretKey as CryptoEncryptionSecretKey,
-    PreKey as CryptoPreKey,
+    EncryptedMessage as CryptoEncryptedMessage, EncryptionPublicKey as CryptoEncryptionPublicKey,
+    EncryptionSecretKey as CryptoEncryptionSecretKey, IdentityPublicKey as CryptoIdentityPublicKey,
+    IdentitySecretKey as CryptoIdentitySecretKey, KeyBundle as CryptoKeyBundle,
+    OneTimePreKey as CryptoOneTimePreKey, PreKey as CryptoPreKey,
     SignedPreKey as CryptoSignedPreKey,
-    OneTimePreKey as CryptoOneTimePreKey,
-    KeyBundle as CryptoKeyBundle,
-    EncryptedMessage as CryptoEncryptedMessage,
 };
-use crate::storage_manager::StorageManager;
 
 /// Crypto manager for FFI
 #[derive(Object)]
@@ -56,7 +52,9 @@ impl CryptoManager {
         } else {
             // Generate new encryption keypair
             let keypair = HybridKem::generate()?;
-            self.storage.save_encryption_keypair_bytes(&keypair.secret_key_bytes()).await?;
+            self.storage
+                .save_encryption_keypair_bytes(&keypair.secret_key_bytes())
+                .await?;
             *self.encryption_keypair.lock().await = Some(keypair);
         }
 
@@ -66,21 +64,31 @@ impl CryptoManager {
     // Identity management
     pub async fn generate_identity(&self) -> Result<(IdentityPublicKey, IdentitySecretKey)> {
         let keypair = HybridSign::generate()?;
-        let public = IdentityPublicKey { bytes: keypair.verify_key_bytes() };
-        let secret = IdentitySecretKey { bytes: keypair.secret_key_bytes() };
+        let public = IdentityPublicKey {
+            bytes: keypair.verify_key_bytes(),
+        };
+        let secret = IdentitySecretKey {
+            bytes: keypair.secret_key_bytes(),
+        };
         Ok((public, secret))
     }
 
     pub fn export_identity_public(&self, key: IdentitySecretKey) -> IdentityPublicKey {
         let keypair = HybridSignKeypair::from_bytes(&key.bytes).unwrap();
-        IdentityPublicKey { bytes: keypair.verify_key_bytes() }
+        IdentityPublicKey {
+            bytes: keypair.verify_key_bytes(),
+        }
     }
 
     pub fn export_identity_secret(&self, key: IdentitySecretKey) -> IdentitySecretKey {
         key
     }
 
-    pub fn import_identity(&self, public: IdentityPublicKey, secret: IdentitySecretKey) -> IdentitySecretKey {
+    pub fn import_identity(
+        &self,
+        public: IdentityPublicKey,
+        secret: IdentitySecretKey,
+    ) -> IdentitySecretKey {
         // Verify they match
         let keypair = HybridSignKeypair::from_bytes(&secret.bytes).unwrap();
         assert_eq!(keypair.verify_key_bytes(), public.bytes);
@@ -93,7 +101,9 @@ impl CryptoManager {
         for i in 0..count {
             let kem_keypair = HybridKem::generate()?;
             let identity = self.identity.lock().await;
-            let identity = identity.as_ref().ok_or_else(|| anyhow::anyhow!("No identity"))?;
+            let identity = identity
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("No identity"))?;
 
             let signed_pre_key = HybridSign::sign(
                 identity,
@@ -103,15 +113,22 @@ impl CryptoManager {
 
             keys.push(PreKey {
                 key_id: i,
-                public_key: EncryptionPublicKey { bytes: kem_keypair.public_key_bytes() },
-                signature: yzchat_crypto::hybrid_sign::HybridSign::signature_to_bytes(&signed_pre_key),
+                public_key: EncryptionPublicKey {
+                    bytes: kem_keypair.public_key_bytes(),
+                },
+                signature: yzchat_crypto::hybrid_sign::HybridSign::signature_to_bytes(
+                    &signed_pre_key,
+                ),
                 timestamp: chrono::Utc::now().timestamp_millis(),
             });
         }
         Ok(keys)
     }
 
-    pub async fn generate_signed_pre_key(&self, identity: IdentitySecretKey) -> Result<SignedPreKey> {
+    pub async fn generate_signed_pre_key(
+        &self,
+        identity: IdentitySecretKey,
+    ) -> Result<SignedPreKey> {
         let kem_keypair = HybridKem::generate()?;
         let identity_keypair = HybridSignKeypair::from_bytes(&identity.bytes)?;
 
@@ -123,7 +140,9 @@ impl CryptoManager {
 
         Ok(SignedPreKey {
             key_id: rand::random(),
-            public_key: EncryptionPublicKey { bytes: kem_keypair.public_key_bytes() },
+            public_key: EncryptionPublicKey {
+                bytes: kem_keypair.public_key_bytes(),
+            },
             signature: yzchat_crypto::hybrid_sign::HybridSign::signature_to_bytes(&signed),
             timestamp: chrono::Utc::now().timestamp_millis(),
         })
@@ -164,8 +183,13 @@ impl CryptoManager {
             state.clone()
         } else {
             // Initialize new ratchet
-            let sender_enc = self.encryption_keypair.lock().await.as_ref()
-                .ok_or_else(|| anyhow::anyhow!("No encryption keypair"))?.public_key();
+            let sender_enc = self
+                .encryption_keypair
+                .lock()
+                .await
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("No encryption keypair"))?
+                .public_key();
             let recipient_enc = recipient_bundle.signed_pre_key.public_key;
 
             // Perform X3DH key agreement (simplified)
@@ -177,21 +201,26 @@ impl CryptoManager {
 
         // Encrypt with double ratchet
         let associated_data = b"yzchat-message";
-        let (ciphertext, msg_num, dh_pk) = DoubleRatchet::encrypt(&mut ratchet_state, &plaintext, associated_data)?;
+        let (ciphertext, msg_num, dh_pk) =
+            DoubleRatchet::encrypt(&mut ratchet_state, &plaintext, associated_data)?;
 
         // Update stored state
         ratchet_states.insert(recipient_id, ratchet_state);
 
         // Build ratchet header
         let ratchet_header = RatchetHeader {
-            dh_public: EncryptionPublicKey { bytes: HybridKem::public_key_to_bytes(&dh_pk) },
+            dh_public: EncryptionPublicKey {
+                bytes: HybridKem::public_key_to_bytes(&dh_pk),
+            },
             message_number: msg_num,
             previous_chain_length: 0, // TODO
         };
 
         Ok(EncryptedMessage {
             message_type,
-            sender_identity: IdentityPublicKey { bytes: sender_identity.bytes }, // TODO: derive from secret
+            sender_identity: IdentityPublicKey {
+                bytes: sender_identity.bytes,
+            }, // TODO: derive from secret
             recipient_identity: recipient_bundle.identity_key,
             timestamp: chrono::Utc::now().timestamp_millis(),
             nonce: vec![], // Included in ciphertext
@@ -208,10 +237,13 @@ impl CryptoManager {
         let sender_id = hex::encode(&message.sender_identity.bytes);
         let mut ratchet_states = self.ratchet_states.lock().await;
 
-        let ratchet_state = ratchet_states.get_mut(&sender_id)
+        let ratchet_state = ratchet_states
+            .get_mut(&sender_id)
             .ok_or_else(|| anyhow::anyhow!("No ratchet state for sender"))?;
 
-        let header = message.ratchet_header.ok_or_else(|| anyhow::anyhow!("Missing ratchet header"))?;
+        let header = message
+            .ratchet_header
+            .ok_or_else(|| anyhow::anyhow!("Missing ratchet header"))?;
         let dh_pk = HybridKem::public_key_from_bytes(&header.dh_public.bytes)?;
 
         let plaintext = DoubleRatchet::decrypt(
@@ -229,13 +261,22 @@ impl CryptoManager {
     pub async fn sign_data(&self, identity: IdentitySecretKey, data: Vec<u8>) -> Result<Vec<u8>> {
         let keypair = HybridSignKeypair::from_bytes(&identity.bytes)?;
         let signature = HybridSign::sign(&keypair, &data, yzchat_crypto::domain::IDENTITY_BINDING)?;
-        Ok(yzchat_crypto::hybrid_sign::HybridSign::signature_to_bytes(&signature))
+        Ok(yzchat_crypto::hybrid_sign::HybridSign::signature_to_bytes(
+            &signature,
+        ))
     }
 
-    pub async fn verify_signature(&self, public: IdentityPublicKey, data: Vec<u8>, signature: Vec<u8>) -> Result<bool> {
+    pub async fn verify_signature(
+        &self,
+        public: IdentityPublicKey,
+        data: Vec<u8>,
+        signature: Vec<u8>,
+    ) -> Result<bool> {
         let vk = yzchat_crypto::hybrid_sign::HybridVerifyKey::from_bytes(&public.bytes)?;
         let sig = yzchat_crypto::hybrid_sign::HybridSignature::from_bytes(&signature)?;
-        HybridSign::verify(&vk, &data, &sig, yzchat_crypto::domain::IDENTITY_BINDING).map(|_| true).map_err(|_| false)
+        HybridSign::verify(&vk, &data, &sig, yzchat_crypto::domain::IDENTITY_BINDING)
+            .map(|_| true)
+            .map_err(|_| false)
     }
 
     // Internal helper
@@ -284,7 +325,8 @@ impl From<&PreKey> for yzchat_crypto::types::PreKey {
         Self {
             key_id: key.key_id,
             public_key: key.public_key.clone().into(),
-            signature: yzchat_crypto::hybrid_sign::HybridSignature::from_bytes(&key.signature).unwrap(),
+            signature: yzchat_crypto::hybrid_sign::HybridSignature::from_bytes(&key.signature)
+                .unwrap(),
             timestamp: key.timestamp,
         }
     }

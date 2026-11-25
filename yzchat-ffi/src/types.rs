@@ -60,7 +60,8 @@ pub struct IdentityPublicKey {
 
 impl IdentityPublicKey {
     pub fn from_hex_string(hex: &str) -> Self {
-        let bytes = hex.chars()
+        let bytes = hex
+            .chars()
             .collect::<Vec<_>>()
             .chunks(2)
             .map(|c| u8::from_str_radix(&c.iter().collect::<String>(), 16).unwrap())

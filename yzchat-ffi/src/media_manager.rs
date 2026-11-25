@@ -1,7 +1,8 @@
 //! MediaManager: FFI wrapper for yzchat-media
 
-use crate::types::*;
 use crate::callbacks::*;
+use crate::crypto_manager::CryptoManager;
+use crate::types::*;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,13 +10,12 @@ use tokio::sync::{Mutex, RwLock};
 use uniffi::Object;
 use uuid::Uuid;
 use yzchat_media::{
-    webrtc_engine::{WebRtcEngine, WebRtcConfig, PeerConnection},
-    audio::{AudioEngine, AudioConfig},
-    video::{VideoEngine, VideoConfig},
-    screen_share::{ScreenShareEngine, ScreenShareConfig},
+    audio::{AudioConfig, AudioEngine},
+    screen_share::{ScreenShareConfig, ScreenShareEngine},
     types::*,
+    video::{VideoConfig, VideoEngine},
+    webrtc_engine::{PeerConnection, WebRtcConfig, WebRtcEngine},
 };
-use crate::crypto_manager::CryptoManager;
 
 /// Media manager for FFI
 #[derive(Object)]
@@ -67,7 +67,11 @@ impl MediaManager {
     }
 
     // Audio calls
-    pub async fn start_audio_call(&self, remote_node: Vec<u8>, constraints: MediaConstraints) -> Result<String> {
+    pub async fn start_audio_call(
+        &self,
+        remote_node: Vec<u8>,
+        constraints: MediaConstraints,
+    ) -> Result<String> {
         let call_id = Uuid::new_v4().to_string();
 
         // Initialize audio engine
@@ -78,10 +82,20 @@ impl MediaManager {
         *self.audio_engine.lock().await = Some(audio_engine);
 
         // Create WebRTC peer connection
-        let pc = self.webrtc.create_peer_connection(Uuid::parse_str(&call_id)?).await?;
+        let pc = self
+            .webrtc
+            .create_peer_connection(Uuid::parse_str(&call_id)?)
+            .await?;
 
         // Add audio track
-        let audio_track = audio_engine.lock().await.as_ref().unwrap().track().unwrap().clone();
+        let audio_track = audio_engine
+            .lock()
+            .await
+            .as_ref()
+            .unwrap()
+            .track()
+            .unwrap()
+            .clone();
         pc.add_audio_track(audio_track).await?;
 
         // Set up call state
@@ -93,7 +107,10 @@ impl MediaManager {
             state: CallStateEnum::Connecting,
             quality: MediaQuality::default(),
         };
-        self.active_calls.lock().await.insert(call_id.clone(), call_state);
+        self.active_calls
+            .lock()
+            .await
+            .insert(call_id.clone(), call_state);
 
         // Create offer
         let offer = pc.create_offer().await?;
@@ -101,7 +118,12 @@ impl MediaManager {
         // Notify callback for signaling
         if let Some(cb) = self.call_callback.lock().await.as_ref() {
             let quality = MediaQuality::default();
-            cb(call_id.clone(), remote_node, MediaSessionType::VoiceCall, quality);
+            cb(
+                call_id.clone(),
+                remote_node,
+                MediaSessionType::VoiceCall,
+                quality,
+            );
         }
 
         Ok(call_id)
@@ -132,7 +154,11 @@ impl MediaManager {
     }
 
     // Video calls
-    pub async fn start_video_call(&self, remote_node: Vec<u8>, constraints: MediaConstraints) -> Result<String> {
+    pub async fn start_video_call(
+        &self,
+        remote_node: Vec<u8>,
+        constraints: MediaConstraints,
+    ) -> Result<String> {
         let call_id = Uuid::new_v4().to_string();
 
         // Initialize video engine
@@ -143,10 +169,20 @@ impl MediaManager {
         *self.video_engine.lock().await = Some(video_engine);
 
         // Create WebRTC peer connection
-        let pc = self.webrtc.create_peer_connection(Uuid::parse_str(&call_id)?).await?;
+        let pc = self
+            .webrtc
+            .create_peer_connection(Uuid::parse_str(&call_id)?)
+            .await?;
 
         // Add video track
-        let video_track = video_engine.lock().await.as_ref().unwrap().track().unwrap().clone();
+        let video_track = video_engine
+            .lock()
+            .await
+            .as_ref()
+            .unwrap()
+            .track()
+            .unwrap()
+            .clone();
         pc.add_video_track(video_track).await?;
 
         // Set up call state
@@ -158,12 +194,20 @@ impl MediaManager {
             state: CallStateEnum::Connecting,
             quality: MediaQuality::default(),
         };
-        self.active_calls.lock().await.insert(call_id.clone(), call_state);
+        self.active_calls
+            .lock()
+            .await
+            .insert(call_id.clone(), call_state);
 
         // Notify callback
         if let Some(cb) = self.call_callback.lock().await.as_ref() {
             let quality = MediaQuality::default();
-            cb(call_id.clone(), remote_node, MediaSessionType::VideoCall, quality);
+            cb(
+                call_id.clone(),
+                remote_node,
+                MediaSessionType::VideoCall,
+                quality,
+            );
         }
 
         Ok(call_id)
@@ -196,7 +240,11 @@ impl MediaManager {
     }
 
     // Screen share
-    pub async fn start_screen_share(&self, remote_node: Vec<u8>, constraints: MediaConstraints) -> Result<String> {
+    pub async fn start_screen_share(
+        &self,
+        remote_node: Vec<u8>,
+        constraints: MediaConstraints,
+    ) -> Result<String> {
         let call_id = Uuid::new_v4().to_string();
 
         // Initialize screen share engine
@@ -207,10 +255,20 @@ impl MediaManager {
         *self.screen_engine.lock().await = Some(screen_engine);
 
         // Create WebRTC peer connection
-        let pc = self.webrtc.create_peer_connection(Uuid::parse_str(&call_id)?).await?;
+        let pc = self
+            .webrtc
+            .create_peer_connection(Uuid::parse_str(&call_id)?)
+            .await?;
 
         // Add screen track
-        let screen_track = screen_engine.lock().await.as_ref().unwrap().track().unwrap().clone();
+        let screen_track = screen_engine
+            .lock()
+            .await
+            .as_ref()
+            .unwrap()
+            .track()
+            .unwrap()
+            .clone();
         pc.add_screen_track(screen_track).await?;
 
         // Set up call state
@@ -222,7 +280,10 @@ impl MediaManager {
             state: CallStateEnum::Connecting,
             quality: MediaQuality::default(),
         };
-        self.active_calls.lock().await.insert(call_id.clone(), call_state);
+        self.active_calls
+            .lock()
+            .await
+            .insert(call_id.clone(), call_state);
 
         Ok(call_id)
     }
@@ -262,31 +323,37 @@ impl MediaManager {
     // Devices
     pub async fn enumerate_audio_devices(&self) -> Result<Vec<AudioDevice>> {
         // TODO: implement device enumeration via GStreamer
-        Ok(vec![
-            AudioDevice {
-                id: "default".to_string(),
-                name: "Default".to_string(),
-                is_input: true,
-                is_output: true,
-                is_default: true,
-                sample_rates: vec![48000, 44100, 16000],
-                channel_counts: vec![1, 2],
-            }
-        ])
+        Ok(vec![AudioDevice {
+            id: "default".to_string(),
+            name: "Default".to_string(),
+            is_input: true,
+            is_output: true,
+            is_default: true,
+            sample_rates: vec![48000, 44100, 16000],
+            channel_counts: vec![1, 2],
+        }])
     }
 
     pub async fn enumerate_video_devices(&self) -> Result<Vec<VideoDevice>> {
-        Ok(vec![
-            VideoDevice {
-                id: "default".to_string(),
-                name: "Default Camera".to_string(),
-                formats: vec![
-                    VideoFormat { width: 1920, height: 1080, framerate: 30, format: "I420".to_string() },
-                    VideoFormat { width: 3840, height: 2160, framerate: 30, format: "I420".to_string() },
-                ],
-                is_default: true,
-            }
-        ])
+        Ok(vec![VideoDevice {
+            id: "default".to_string(),
+            name: "Default Camera".to_string(),
+            formats: vec![
+                VideoFormat {
+                    width: 1920,
+                    height: 1080,
+                    framerate: 30,
+                    format: "I420".to_string(),
+                },
+                VideoFormat {
+                    width: 3840,
+                    height: 2160,
+                    framerate: 30,
+                    format: "I420".to_string(),
+                },
+            ],
+            is_default: true,
+        }])
     }
 
     // Quality

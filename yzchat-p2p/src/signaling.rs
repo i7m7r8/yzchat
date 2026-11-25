@@ -3,17 +3,17 @@
 //! Exchanges SDP offers/answers and ICE candidates for WebRTC peer connections.
 //! Uses Iroh's RPC system for reliable, ordered delivery over QUIC.
 
-use crate::{P2pError, Result, NodeId};
+use crate::{NodeId, P2pError, Result};
 use anyhow::Context;
 use iroh::Endpoint;
-use iroh_rpc::proto::{Service, Method, Request, Response};
-use iroh_rpc::server::Server;
 use iroh_rpc::client::Client;
-use serde::{Serialize, Deserialize};
+use iroh_rpc::proto::{Method, Request, Response, Service};
+use iroh_rpc::server::Server;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 /// Signaling protocol name
@@ -160,27 +160,30 @@ impl Signaling {
     /// Start signaling service (register RPC methods)
     pub async fn start(&mut self) -> Result<()> {
         // Create RPC server
-        let mut server = Server::builder()
-            .accept(SIGNALING_PROTOCOL)
-            .build();
+        let mut server = Server::builder().accept(SIGNALING_PROTOCOL).build();
 
         // Register methods
-        server.register_method(
-            Method::new("offer", Self::handle_offer),
-            self.sessions.clone(),
-        ).await?;
-        server.register_method(
-            Method::new("answer", Self::handle_answer),
-            self.sessions.clone(),
-        ).await?;
-        server.register_method(
-            Method::new("ice_candidate", Self::handle_ice_candidate),
-            self.sessions.clone(),
-        ).await?;
-        server.register_method(
-            Method::new("end", Self::handle_end),
-            self.sessions.clone(),
-        ).await?;
+        server
+            .register_method(
+                Method::new("offer", Self::handle_offer),
+                self.sessions.clone(),
+            )
+            .await?;
+        server
+            .register_method(
+                Method::new("answer", Self::handle_answer),
+                self.sessions.clone(),
+            )
+            .await?;
+        server
+            .register_method(
+                Method::new("ice_candidate", Self::handle_ice_candidate),
+                self.sessions.clone(),
+            )
+            .await?;
+        server
+            .register_method(Method::new("end", Self::handle_end), self.sessions.clone())
+            .await?;
 
         self.rpc_server = Some(server);
 
@@ -223,7 +226,8 @@ impl Signaling {
     /// Set local SDP offer
     pub async fn set_local_offer(&self, session_id: Uuid, sdp: String) -> Result<()> {
         let mut sessions = self.sessions.write().await;
-        let session = sessions.get_mut(&session_id)
+        let session = sessions
+            .get_mut(&session_id)
             .ok_or(P2pError::SessionNotFound)?;
         session.local_sdp = Some(sdp);
         session.state = SessionState::OfferSent;
@@ -234,7 +238,8 @@ impl Signaling {
     /// Set local SDP answer
     pub async fn set_local_answer(&self, session_id: Uuid, sdp: String) -> Result<()> {
         let mut sessions = self.sessions.write().await;
-        let session = sessions.get_mut(&session_id)
+        let session = sessions
+            .get_mut(&session_id)
             .ok_or(P2pError::SessionNotFound)?;
         session.local_sdp = Some(sdp);
         session.state = SessionState::AnswerSent;
@@ -243,9 +248,14 @@ impl Signaling {
     }
 
     /// Add local ICE candidate
-    pub async fn add_local_candidate(&self, session_id: Uuid, candidate: IceCandidate) -> Result<()> {
+    pub async fn add_local_candidate(
+        &self,
+        session_id: Uuid,
+        candidate: IceCandidate,
+    ) -> Result<()> {
         let mut sessions = self.sessions.write().await;
-        let session = sessions.get_mut(&session_id)
+        let session = sessions
+            .get_mut(&session_id)
             .ok_or(P2pError::SessionNotFound)?;
         session.local_candidates.push(candidate);
         session.updated_at = chrono::Utc::now();
@@ -260,45 +270,46 @@ impl Signaling {
     /// Send offer to remote
     pub async fn send_offer(&self, session_id: Uuid) -> Result<()> {
         let sessions = self.sessions.read().await;
-        let session = sessions.get(&session_id)
-            .ok_or(P2pError::SessionNotFound)?;
+        let session = sessions.get(&session_id).ok_or(P2pError::SessionNotFound)?;
 
         let offer = SdpOffer {
             session_id,
             from: self.endpoint.node_id(),
             to: session.remote_node,
-            sdp: session.local_sdp.clone()
-                .ok_or(P2pError::NoLocalSdp)?,
+            sdp: session.local_sdp.clone().ok_or(P2pError::NoLocalSdp)?,
             timestamp: chrono::Utc::now(),
         };
 
         // Send via RPC (simplified)
-        self.send_rpc_message(session.remote_node, SignalingMessage::Offer(offer)).await
+        self.send_rpc_message(session.remote_node, SignalingMessage::Offer(offer))
+            .await
     }
 
     /// Send answer to remote
     pub async fn send_answer(&self, session_id: Uuid) -> Result<()> {
         let sessions = self.sessions.read().await;
-        let session = sessions.get(&session_id)
-            .ok_or(P2pError::SessionNotFound)?;
+        let session = sessions.get(&session_id).ok_or(P2pError::SessionNotFound)?;
 
         let answer = SdpAnswer {
             session_id,
             from: self.endpoint.node_id(),
             to: session.remote_node,
-            sdp: session.local_sdp.clone()
-                .ok_or(P2pError::NoLocalSdp)?,
+            sdp: session.local_sdp.clone().ok_or(P2pError::NoLocalSdp)?,
             timestamp: chrono::Utc::now(),
         };
 
-        self.send_rpc_message(session.remote_node, SignalingMessage::Answer(answer)).await
+        self.send_rpc_message(session.remote_node, SignalingMessage::Answer(answer))
+            .await
     }
 
     /// Send ICE candidate
-    pub async fn send_ice_candidate(&self, session_id: Uuid, candidate: IceCandidate) -> Result<()> {
+    pub async fn send_ice_candidate(
+        &self,
+        session_id: Uuid,
+        candidate: IceCandidate,
+    ) -> Result<()> {
         let sessions = self.sessions.read().await;
-        let session = sessions.get(&session_id)
-            .ok_or(P2pError::SessionNotFound)?;
+        let session = sessions.get(&session_id).ok_or(P2pError::SessionNotFound)?;
 
         let ice_msg = IceCandidateMessage {
             session_id,
@@ -308,14 +319,14 @@ impl Signaling {
             timestamp: chrono::Utc::now(),
         };
 
-        self.send_rpc_message(session.remote_node, SignalingMessage::IceCandidate(ice_msg)).await
+        self.send_rpc_message(session.remote_node, SignalingMessage::IceCandidate(ice_msg))
+            .await
     }
 
     /// End session
     pub async fn end_session(&self, session_id: Uuid, reason: String) -> Result<()> {
         let sessions = self.sessions.read().await;
-        let session = sessions.get(&session_id)
-            .ok_or(P2pError::SessionNotFound)?;
+        let session = sessions.get(&session_id).ok_or(P2pError::SessionNotFound)?;
 
         let end_msg = SessionEnd {
             session_id,
@@ -324,7 +335,8 @@ impl Signaling {
             reason,
         };
 
-        self.send_rpc_message(session.remote_node, SignalingMessage::End(end_msg)).await?;
+        self.send_rpc_message(session.remote_node, SignalingMessage::End(end_msg))
+            .await?;
         self.sessions.write().await.remove(&session_id);
         Ok(())
     }
@@ -345,17 +357,19 @@ impl Signaling {
         let offer: SdpOffer = request.decode().await?;
         let mut sessions = sessions.write().await;
 
-        let session = sessions.entry(offer.session_id).or_insert_with(|| SignalingSession {
-            session_id: offer.session_id,
-            remote_node: offer.from,
-            state: SessionState::OfferReceived,
-            local_sdp: None,
-            remote_sdp: Some(offer.sdp.clone()),
-            local_candidates: vec![],
-            remote_candidates: vec![],
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        });
+        let session = sessions
+            .entry(offer.session_id)
+            .or_insert_with(|| SignalingSession {
+                session_id: offer.session_id,
+                remote_node: offer.from,
+                state: SessionState::OfferReceived,
+                local_sdp: None,
+                remote_sdp: Some(offer.sdp.clone()),
+                local_candidates: vec![],
+                remote_candidates: vec![],
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            });
 
         session.remote_sdp = Some(offer.sdp);
         session.state = SessionState::OfferReceived;

@@ -1,14 +1,14 @@
 //! Node Endpoint: Iroh identity + QUIC listener + RPC server
 
-use crate::{ALPN_YZCHAT, MAX_MESSAGE_SIZE, P2pError, Result};
+use crate::{P2pError, Result, ALPN_YZCHAT, MAX_MESSAGE_SIZE};
 use anyhow::Context;
-use iroh::{Endpoint, NodeId, SecretKey, protocol::Router};
+use iroh::{protocol::Router, Endpoint, NodeId, SecretKey};
 use iroh_net::key::SecretKey as NetSecretKey;
 use iroh_net::{discovery::dht::DhtDiscovery, NetConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 /// Endpoint configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -119,7 +119,11 @@ impl NodeEndpoint {
     /// Get listening addresses
     pub async fn listening_addrs(&self) -> Result<Vec<SocketAddr>> {
         let node_addr = self.endpoint.node_addr().await?;
-        Ok(node_addr.direct_addresses().iter().map(|a| a.to_socket_addr().unwrap()).collect())
+        Ok(node_addr
+            .direct_addresses()
+            .iter()
+            .map(|a| a.to_socket_addr().unwrap())
+            .collect())
     }
 
     /// Get home relay URL (for NAT traversal)
@@ -128,7 +132,11 @@ impl NodeEndpoint {
     }
 
     /// Connect to a remote node
-    pub async fn connect(&self, node_id: NodeId, addr: Option<SocketAddr>) -> Result<iroh::Connection> {
+    pub async fn connect(
+        &self,
+        node_id: NodeId,
+        addr: Option<SocketAddr>,
+    ) -> Result<iroh::Connection> {
         let conn = if let Some(addr) = addr {
             self.endpoint.connect(addr, ALPN_YZCHAT).await?
         } else {
@@ -161,7 +169,9 @@ pub struct EndpointBuilder {
 
 impl EndpointBuilder {
     pub fn new() -> Self {
-        Self { config: EndpointConfig::default() }
+        Self {
+            config: EndpointConfig::default(),
+        }
     }
 
     pub fn secret_key(mut self, key: Vec<u8>) -> Self {

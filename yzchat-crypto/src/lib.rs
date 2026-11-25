@@ -16,9 +16,9 @@ pub mod ratchet;
 pub mod types;
 
 pub use error::{CryptoError, Result};
-pub use hybrid_kem::{HybridKem, HybridKemKeypair, HybridKemCiphertext, HybridKemSharedSecret};
+pub use hybrid_kem::{HybridKem, HybridKemCiphertext, HybridKemKeypair, HybridKemSharedSecret};
 pub use hybrid_sign::{HybridSign, HybridSignKeypair, HybridSignature};
-pub use noise::{NoiseSession, NoiseHandshakeState, NoiseTransport};
+pub use noise::{NoiseHandshakeState, NoiseSession, NoiseTransport};
 pub use ratchet::{DoubleRatchet, RatchetState};
 pub use types::*;
 

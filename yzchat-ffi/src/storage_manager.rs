@@ -2,7 +2,7 @@
 
 use crate::types::*;
 use anyhow::{Context, Result};
-use redb::{Database, TableDefinition, ReadableTable, MultimapTableDefinition};
+use redb::{Database, MultimapTableDefinition, ReadableTable, TableDefinition};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -72,7 +72,9 @@ impl StorageManager {
     pub async fn load_identity(&self) -> Result<Option<IdentitySecretKey>> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(TableDefinition::new("identity"))?;
-        Ok(table.get("current")?.map(|v| IdentitySecretKey { bytes: v.value().to_vec() }))
+        Ok(table.get("current")?.map(|v| IdentitySecretKey {
+            bytes: v.value().to_vec(),
+        }))
     }
 
     pub async fn load_identity_bytes(&self) -> Result<Option<Vec<u8>>> {
@@ -112,7 +114,8 @@ impl StorageManager {
     pub async fn save_pre_keys(&self, keys: Vec<PreKey>) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
-            let mut table = write_txn.open_multimap_table(MultimapTableDefinition::new("pre_keys"))?;
+            let mut table =
+                write_txn.open_multimap_table(MultimapTableDefinition::new("pre_keys"))?;
             for key in keys {
                 let bytes = serde_json::to_vec(&key)?;
                 table.insert(key.key_id, &bytes)?;
@@ -165,7 +168,8 @@ impl StorageManager {
             table.insert(&identity.bytes, &serde_json::to_vec(&contact)?)?;
         }
         write_txn.commit()?;
-        self.notify_contact_event(contact, ContactEvent::Added).await;
+        self.notify_contact_event(contact, ContactEvent::Added)
+            .await;
         Ok(())
     }
 
@@ -191,7 +195,11 @@ impl StorageManager {
         Ok(contacts)
     }
 
-    pub async fn update_contact_alias(&self, identity: IdentityPublicKey, alias: String) -> Result<()> {
+    pub async fn update_contact_alias(
+        &self,
+        identity: IdentityPublicKey,
+        alias: String,
+    ) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(TableDefinition::new("contacts"))?;
@@ -206,7 +214,11 @@ impl StorageManager {
     }
 
     // Conversations
-    pub async fn create_conversation(&self, conversation_id: String, participants: Vec<IdentityPublicKey>) -> Result<()> {
+    pub async fn create_conversation(
+        &self,
+        conversation_id: String,
+        participants: Vec<IdentityPublicKey>,
+    ) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(TableDefinition::new("conversations"))?;
@@ -225,14 +237,21 @@ impl StorageManager {
     pub async fn get_conversation(&self, conversation_id: &str) -> Result<Option<Conversation>> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(TableDefinition::new("conversations"))?;
-        Ok(table.get(conversation_id)?.map(|v| serde_json::from_slice(v.value()).unwrap()))
+        Ok(table
+            .get(conversation_id)?
+            .map(|v| serde_json::from_slice(v.value()).unwrap()))
     }
 
     // Messages
-    pub async fn save_message(&self, conversation_id: String, message: EncryptedMessage) -> Result<()> {
+    pub async fn save_message(
+        &self,
+        conversation_id: String,
+        message: EncryptedMessage,
+    ) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
-            let mut table = write_txn.open_multimap_table(MultimapTableDefinition::new("messages"))?;
+            let mut table =
+                write_txn.open_multimap_table(MultimapTableDefinition::new("messages"))?;
             let msg = StoredMessage {
                 id: Uuid::new_v4().to_string(),
                 conversation_id: conversation_id.clone(),
@@ -270,13 +289,23 @@ impl StorageManager {
         Ok(messages)
     }
 
-    pub async fn mark_message_read(&self, conversation_id: String, message_id: String) -> Result<()> {
+    pub async fn mark_message_read(
+        &self,
+        conversation_id: String,
+        message_id: String,
+    ) -> Result<()> {
         // TODO: implement read receipt tracking
         Ok(())
     }
 
     // Groups
-    pub async fn create_group(&self, group_id: String, name: String, creator: IdentityPublicKey, members: Vec<IdentityPublicKey>) -> Result<()> {
+    pub async fn create_group(
+        &self,
+        group_id: String,
+        name: String,
+        creator: IdentityPublicKey,
+        members: Vec<IdentityPublicKey>,
+    ) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(TableDefinition::new("groups"))?;
@@ -284,19 +313,27 @@ impl StorageManager {
                 id: group_id.clone(),
                 name,
                 creator: creator.clone(),
-                members: members.iter().map(|m| GroupMember {
-                    identity: m.clone(),
-                    alias: "".to_string(),
-                    role: if m == creator { GroupRole::Owner } else { GroupRole::Member },
-                    joined_at: chrono::Utc::now().timestamp_millis(),
-                }).collect(),
+                members: members
+                    .iter()
+                    .map(|m| GroupMember {
+                        identity: m.clone(),
+                        alias: "".to_string(),
+                        role: if m == creator {
+                            GroupRole::Owner
+                        } else {
+                            GroupRole::Member
+                        },
+                        joined_at: chrono::Utc::now().timestamp_millis(),
+                    })
+                    .collect(),
                 created_at: chrono::Utc::now().timestamp_millis(),
                 updated_at: chrono::Utc::now().timestamp_millis(),
             };
             table.insert(&group_id, &serde_json::to_vec(&group)?)?;
 
             // Add members to multimap
-            let mut member_table = write_txn.open_multimap_table(MultimapTableDefinition::new("group_members"))?;
+            let mut member_table =
+                write_txn.open_multimap_table(MultimapTableDefinition::new("group_members"))?;
             for member in &group.members {
                 member_table.insert(&group_id, &serde_json::to_vec(member)?)?;
             }
@@ -310,7 +347,8 @@ impl StorageManager {
         {
             let mut table = write_txn.open_table(TableDefinition::new("groups"))?;
             table.remove(&group_id)?;
-            let mut member_table = write_txn.open_multimap_table(MultimapTableDefinition::new("group_members"))?;
+            let mut member_table =
+                write_txn.open_multimap_table(MultimapTableDefinition::new("group_members"))?;
             member_table.remove(&group_id)?;
         }
         write_txn.commit()?;
@@ -330,7 +368,11 @@ impl StorageManager {
     }
 
     // Key bundles
-    pub async fn save_key_bundle(&self, identity: IdentityPublicKey, bundle: KeyBundle) -> Result<()> {
+    pub async fn save_key_bundle(
+        &self,
+        identity: IdentityPublicKey,
+        bundle: KeyBundle,
+    ) -> Result<()> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(TableDefinition::new("key_bundles"))?;
@@ -343,12 +385,16 @@ impl StorageManager {
     pub async fn load_key_bundle(&self, identity: &IdentityPublicKey) -> Result<KeyBundle> {
         let read_txn = self.db.begin_read()?;
         let table = read_txn.open_table(TableDefinition::new("key_bundles"))?;
-        Ok(table.get(&identity.bytes)?
+        Ok(table
+            .get(&identity.bytes)?
             .map(|v| serde_json::from_slice(v.value()).unwrap())
             .ok_or_else(|| anyhow::anyhow!("Key bundle not found"))?)
     }
 
-    pub async fn get_node_id_for_identity(&self, identity: &IdentityPublicKey) -> Result<Option<Vec<u8>>> {
+    pub async fn get_node_id_for_identity(
+        &self,
+        identity: &IdentityPublicKey,
+    ) -> Result<Option<Vec<u8>>> {
         // TODO: map identity to node ID
         Ok(None)
     }

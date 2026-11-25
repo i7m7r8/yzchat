@@ -1,25 +1,25 @@
 //! P2PManager: FFI wrapper for yzchat-p2p
 
-use crate::types::*;
 use crate::callbacks::*;
+use crate::storage_manager::StorageManager;
+use crate::types::*;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use uniffi::Object;
 use uuid::Uuid;
+use yzchat_crypto::types::IdentityPublicKey as CryptoIdentityPublicKey;
 use yzchat_p2p::{
-    endpoint::{NodeEndpoint, EndpointConfig, EndpointBuilder},
+    blobs::{BlobConfig, BlobStore},
     discovery::{Discovery, DiscoveryConfig},
-    router::{Router, RouterConfig, IncomingMessage, OutgoingMessage},
+    docs::{DocConfig, DocStore},
+    endpoint::{EndpointBuilder, EndpointConfig, NodeEndpoint},
+    router::{IncomingMessage, OutgoingMessage, Router, RouterConfig},
     signaling::{Signaling, SignalingConfig},
-    blobs::{BlobStore, BlobConfig},
-    docs::{DocStore, DocConfig},
     types::*,
     P2pError, Result as P2pResult,
 };
-use yzchat_crypto::types::IdentityPublicKey as CryptoIdentityPublicKey;
-use crate::storage_manager::StorageManager;
 
 /// P2P manager for FFI
 #[derive(Object)]
@@ -101,7 +101,9 @@ impl P2PManager {
                 // Process inbox
                 while let Some(msg) = router.recv().await {
                     // Decrypt message
-                    if let Ok(decrypted) = Self::process_incoming_message(&crypto, &storage, msg).await {
+                    if let Ok(decrypted) =
+                        Self::process_incoming_message(&crypto, &storage, msg).await
+                    {
                         // Call callback
                         if let Some(cb) = message_callback.lock().await.as_ref() {
                             cb(decrypted.from, decrypted.protocol, decrypted.payload);
@@ -163,18 +165,21 @@ impl P2PManager {
     }
 
     pub async fn add_peer(&self, node_id: Vec<u8>, addresses: Vec<String>) -> Result<()> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id)
-            .context("Invalid node ID")?;
-        let addrs: Result<Vec<std::net::SocketAddr>> = addresses.iter()
+        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id).context("Invalid node ID")?;
+        let addrs: Result<Vec<std::net::SocketAddr>> = addresses
+            .iter()
             .map(|a| a.parse().context("Invalid address"))
             .collect();
         self.discovery.add_peer(node_id, addrs?).await
     }
 
     pub async fn get_peer(&self, node_id: Vec<u8>) -> Result<Option<PeerInfo>> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id)
-            .context("Invalid node ID")?;
-        Ok(self.discovery.get_peer(node_id).await.map(Self::peer_to_info))
+        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id).context("Invalid node ID")?;
+        Ok(self
+            .discovery
+            .get_peer(node_id)
+            .await
+            .map(Self::peer_to_info))
     }
 
     fn peer_to_info(peer: yzchat_p2p::discovery::DiscoveredPeer) -> PeerInfo {
@@ -199,15 +204,15 @@ impl P2PManager {
 
     // Connections
     pub async fn connect(&self, node_id: Vec<u8>) -> Result<()> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id)
-            .context("Invalid node ID")?;
-        self.endpoint.connect(node_id, yzchat_p2p::ALPN_YZCHAT).await?;
+        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id).context("Invalid node ID")?;
+        self.endpoint
+            .connect(node_id, yzchat_p2p::ALPN_YZCHAT)
+            .await?;
         Ok(())
     }
 
     pub async fn disconnect(&self, node_id: Vec<u8>) -> Result<()> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id)
-            .context("Invalid node ID")?;
+        let node_id = yzchat_p2p::types::NodeId::from_bytes(&node_id).context("Invalid node ID")?;
         if let Some(router) = self.router.lock().await.as_ref() {
             router.disconnect_peer(node_id).await?;
         }
@@ -224,19 +229,25 @@ impl P2PManager {
     }
 
     // Messaging
-    pub async fn send_message(&self, to: Vec<u8>, protocol: String, payload: Vec<u8>) -> Result<()> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&to)
-            .context("Invalid node ID")?;
+    pub async fn send_message(
+        &self,
+        to: Vec<u8>,
+        protocol: String,
+        payload: Vec<u8>,
+    ) -> Result<()> {
+        let node_id = yzchat_p2p::types::NodeId::from_bytes(&to).context("Invalid node ID")?;
         if let Some(router) = self.router.lock().await.as_ref() {
-            router.send(OutgoingMessage {
-                message_id: Uuid::new_v4(),
-                from: self.endpoint.node_id(),
-                to: node_id,
-                protocol,
-                payload,
-                timestamp: chrono::Utc::now(),
-                require_ack: true,
-            }).await?;
+            router
+                .send(OutgoingMessage {
+                    message_id: Uuid::new_v4(),
+                    from: self.endpoint.node_id(),
+                    to: node_id,
+                    protocol,
+                    payload,
+                    timestamp: chrono::Utc::now(),
+                    require_ack: true,
+                })
+                .await?;
         }
         Ok(())
     }
@@ -247,17 +258,20 @@ impl P2PManager {
 
     // Signaling
     pub async fn create_call_session(&self, remote_node: Vec<u8>) -> Result<String> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&remote_node)
-            .context("Invalid node ID")?;
+        let node_id =
+            yzchat_p2p::types::NodeId::from_bytes(&remote_node).context("Invalid node ID")?;
         let session_id = Uuid::new_v4();
-        self.pending_sessions.lock().await.insert(session_id.to_string(), session_id);
+        self.pending_sessions
+            .lock()
+            .await
+            .insert(session_id.to_string(), session_id);
         Ok(session_id.to_string())
     }
 
     pub async fn send_offer(&self, session_id: String, offer: SdpOffer) -> Result<()> {
         let session_uuid = Uuid::parse_str(&session_id).context("Invalid session ID")?;
-        let remote_node = yzchat_p2p::types::NodeId::from_bytes(&offer.from)
-            .context("Invalid node ID")?;
+        let remote_node =
+            yzchat_p2p::types::NodeId::from_bytes(&offer.from).context("Invalid node ID")?;
         let sdp_offer = yzchat_p2p::signaling::SdpOffer {
             session_id: session_uuid,
             from: self.endpoint.node_id(),
@@ -267,7 +281,9 @@ impl P2PManager {
         };
         if let Some(signaling) = self.signaling.lock().await.as_ref() {
             // Set local offer and send
-            signaling.set_local_offer(session_uuid, sdp_offer.sdp.clone()).await?;
+            signaling
+                .set_local_offer(session_uuid, sdp_offer.sdp.clone())
+                .await?;
             signaling.send_offer(session_uuid).await?;
         }
         Ok(())
@@ -275,23 +291,30 @@ impl P2PManager {
 
     pub async fn send_answer(&self, session_id: String, answer: SdpAnswer) -> Result<()> {
         let session_uuid = Uuid::parse_str(&session_id).context("Invalid session ID")?;
-        let remote_node = yzchat_p2p::types::NodeId::from_bytes(&answer.from)
-            .context("Invalid node ID")?;
+        let remote_node =
+            yzchat_p2p::types::NodeId::from_bytes(&answer.from).context("Invalid node ID")?;
         let sdp_answer = yzchat_p2p::signaling::SdpAnswer {
             session_id: session_uuid,
             from: self.endpoint.node_id(),
             to: remote_node,
             sdp: answer.sdp,
-            timestamp: chrono::DateTime::from_timestamp_millis(answer.timestamp).unwrap_or_default(),
+            timestamp: chrono::DateTime::from_timestamp_millis(answer.timestamp)
+                .unwrap_or_default(),
         };
         if let Some(signaling) = self.signaling.lock().await.as_ref() {
-            signaling.set_local_answer(session_uuid, sdp_answer.sdp.clone()).await?;
+            signaling
+                .set_local_answer(session_uuid, sdp_answer.sdp.clone())
+                .await?;
             signaling.send_answer(session_uuid).await?;
         }
         Ok(())
     }
 
-    pub async fn send_ice_candidate(&self, session_id: String, candidate: IceCandidate) -> Result<()> {
+    pub async fn send_ice_candidate(
+        &self,
+        session_id: String,
+        candidate: IceCandidate,
+    ) -> Result<()> {
         let session_uuid = Uuid::parse_str(&session_id).context("Invalid session ID")?;
         let remote_node = yzchat_p2p::types::NodeId::from_bytes(&candidate.sdp_mid.as_bytes()) // This is wrong, need proper mapping
             .context("Invalid node ID")?;
@@ -322,9 +345,13 @@ impl P2PManager {
     }
 
     // File transfer
-    pub async fn send_file(&self, peer: Vec<u8>, file_path: String, encryption_key: Vec<u8>) -> Result<String> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&peer)
-            .context("Invalid node ID")?;
+    pub async fn send_file(
+        &self,
+        peer: Vec<u8>,
+        file_path: String,
+        encryption_key: Vec<u8>,
+    ) -> Result<String> {
+        let node_id = yzchat_p2p::types::NodeId::from_bytes(&peer).context("Invalid node ID")?;
         let transfer_id = Uuid::new_v4();
 
         // Import file to blob store
@@ -344,9 +371,13 @@ impl P2PManager {
         Ok(transfer_id.to_string())
     }
 
-    pub async fn receive_file(&self, peer: Vec<u8>, blob_hash: String, encryption_key: Vec<u8>) -> Result<String> {
-        let node_id = yzchat_p2p::types::NodeId::from_bytes(&peer)
-            .context("Invalid node ID")?;
+    pub async fn receive_file(
+        &self,
+        peer: Vec<u8>,
+        blob_hash: String,
+        encryption_key: Vec<u8>,
+    ) -> Result<String> {
+        let node_id = yzchat_p2p::types::NodeId::from_bytes(&peer).context("Invalid node ID")?;
         let hash = yzchat_p2p::blobs::Hash::from_hex(&blob_hash).context("Invalid hash")?;
         let format = iroh_blobs::store::Format::Raw; // TODO: determine format
         let transfer_id = Uuid::new_v4();

@@ -1,16 +1,16 @@
 //! Audio Engine: Capture, encode, decode, playback
 
-use crate::{MediaError, Result, AudioCodec, CodecParameters};
+use crate::{AudioCodec, CodecParameters, MediaError, Result};
 use anyhow::Context;
+use bytes::BytesMut;
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
 use gstreamer_audio as gst_audio;
-use opus::{Encoder, Decoder, Channels, Application};
+use opus::{Application, Channels, Decoder, Encoder};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
-use bytes::BytesMut;
-use tracing::{info, debug, warn};
+use tracing::{debug, info, warn};
 
 /// Audio configuration
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -98,8 +98,8 @@ impl AudioTrack {
         encoder.set_fec(config.enable_fec)?;
         encoder.set_complexity(config.complexity)?;
 
-        let decoder = Decoder::new(config.sample_rate, channels)
-            .context("Failed to create Opus decoder")?;
+        let decoder =
+            Decoder::new(config.sample_rate, channels).context("Failed to create Opus decoder")?;
 
         Ok(Self {
             config,
@@ -132,7 +132,8 @@ impl AudioTrack {
         let mut decoder = self.decoder.lock().await;
         let decoder = decoder.as_mut().ok_or(MediaError::DecoderNotInitialized)?;
 
-        let frame_size = (self.config.sample_rate as usize * self.config.frame_duration_ms as usize) / 1000;
+        let frame_size =
+            (self.config.sample_rate as usize * self.config.frame_duration_ms as usize) / 1000;
         let mut pcm = vec![0i16; frame_size * self.config.channels as usize];
 
         let len = decoder.decode(data, &mut pcm, false)?;
@@ -192,7 +193,8 @@ impl AudioCapture {
             .downcast::<gst::Pipeline>()
             .map_err(|_| MediaError::PipelineCreationFailed)?;
 
-        let appsink = pipeline.by_name("sink")
+        let appsink = pipeline
+            .by_name("sink")
             .ok_or(MediaError::ElementNotFound("appsink".into()))?
             .downcast::<gst_app::AppSink>()
             .map_err(|_| MediaError::ElementCastFailed)?;
@@ -205,7 +207,8 @@ impl AudioCapture {
                     let map = buffer.map_readable().map_err(|_| gst::FlowError::Error)?;
 
                     // Convert to f32
-                    let samples: Vec<f32> = map.as_slice()
+                    let samples: Vec<f32> = map
+                        .as_slice()
                         .chunks_exact(4)
                         .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
                         .collect();
@@ -218,7 +221,8 @@ impl AudioCapture {
                 .build(),
         );
 
-        pipeline.set_state(gst::State::Playing)
+        pipeline
+            .set_state(gst::State::Playing)
             .context("Failed to start pipeline")?;
 
         self.pipeline = Some(pipeline);
@@ -271,19 +275,23 @@ impl AudioPlayback {
             .downcast::<gst::Pipeline>()
             .map_err(|_| MediaError::PipelineCreationFailed)?;
 
-        let appsrc = pipeline.by_name("src")
+        let appsrc = pipeline
+            .by_name("src")
             .ok_or(MediaError::ElementNotFound("appsrc".into()))?
             .downcast::<gst_app::AppSrc>()
             .map_err(|_| MediaError::ElementCastFailed)?;
 
-        appsrc.set_caps(&gst_audio::AudioCapsBuilder::new()
-            .format(gst_audio::AUDIO_FORMAT_F32)
-            .rate(self.config.sample_rate as i32)
-            .channels(self.config.channels as i32)
-            .layout(gst_audio::AudioLayout::Interleaved)
-            .build());
+        appsrc.set_caps(
+            &gst_audio::AudioCapsBuilder::new()
+                .format(gst_audio::AUDIO_FORMAT_F32)
+                .rate(self.config.sample_rate as i32)
+                .channels(self.config.channels as i32)
+                .layout(gst_audio::AudioLayout::Interleaved)
+                .build(),
+        );
 
-        pipeline.set_state(gst::State::Playing)
+        pipeline
+            .set_state(gst::State::Playing)
             .context("Failed to start pipeline")?;
 
         self.pipeline = Some(pipeline);
@@ -296,16 +304,22 @@ impl AudioPlayback {
     pub async fn push_samples(&self, samples: &[f32]) -> Result<()> {
         let appsrc = self.appsrc.as_ref().ok_or(MediaError::NotStarted)?;
 
-        let mut buffer = gst::Buffer::with_size(samples.len() * 4).map_err(|_| MediaError::BufferCreationFailed)?;
+        let mut buffer = gst::Buffer::with_size(samples.len() * 4)
+            .map_err(|_| MediaError::BufferCreationFailed)?;
         {
-            let mut map = buffer.map_writable().map_err(|_| MediaError::BufferMapFailed)?;
+            let mut map = buffer
+                .map_writable()
+                .map_err(|_| MediaError::BufferMapFailed)?;
             for &s in samples {
                 let v = (s.clamp(-1.0, 1.0) * 32767.0) as i16;
-                map.as_mut_slice()[map.as_mut_slice().len() - 4..].copy_from_slice(&v.to_le_bytes());
+                map.as_mut_slice()[map.as_mut_slice().len() - 4..]
+                    .copy_from_slice(&v.to_le_bytes());
             }
         }
 
-        appsrc.push_buffer(buffer).map_err(|_| MediaError::PushBufferFailed)?;
+        appsrc
+            .push_buffer(buffer)
+            .map_err(|_| MediaError::PushBufferFailed)?;
         Ok(())
     }
 
@@ -355,7 +369,9 @@ impl AudioEngine {
 
     /// Start engine
     pub async fn start(&mut self) -> Result<()> {
-        if self.running { return Ok(()); }
+        if self.running {
+            return Ok(());
+        }
 
         self.capture.as_mut().unwrap().start().await?;
         self.playback.as_mut().unwrap().start().await?;
@@ -382,7 +398,9 @@ impl AudioEngine {
 
     /// Stop engine
     pub async fn stop(&mut self) -> Result<()> {
-        if !self.running { return Ok(()); }
+        if !self.running {
+            return Ok(());
+        }
 
         self.capture.as_mut().unwrap().stop().await?;
         self.playback.as_mut().unwrap().stop().await?;

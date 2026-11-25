@@ -4,18 +4,24 @@
 //! Based on Signal's Double Ratchet algorithm, adapted for hybrid PQ crypto.
 
 use crate::{
-    domain, sizes, hybrid_kem::{HybridKem, HybridKemKeypair, HybridKemCiphertext, HybridKemSharedSecret, HybridKemPublicKey},
+    domain,
+    hybrid_kem::{
+        HybridKem, HybridKemCiphertext, HybridKemKeypair, HybridKemPublicKey, HybridKemSharedSecret,
+    },
     hybrid_sign::{HybridSign, HybridSignKeypair, HybridSignature, HybridVerifyKey},
-    CryptoError, Result,
+    sizes, CryptoError, Result,
 };
 use anyhow::Context;
+use chacha20poly1305::{
+    aead::{Aead, OsRng as AeadOsRng, Payload},
+    ChaCha20Poly1305, KeyInit,
+};
 use hkdf::Hkdf;
-use sha2::Sha256;
-use chacha20poly1305::{ChaCha20Poly1305, KeyInit, aead::{Aead, Payload, OsRng as AeadOsRng}};
-use zeroize::{Zeroize, ZeroizeOnDrop};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::VecDeque;
 use std::fmt;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Double Ratchet state
 #[derive(Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
@@ -66,7 +72,10 @@ pub struct DoubleRatchet;
 
 impl DoubleRatchet {
     /// Initialize a new Double Ratchet session from a shared secret
-    pub fn initialize(shared_secret: &HybridKemSharedSecret, is_initiator: bool) -> Result<RatchetState> {
+    pub fn initialize(
+        shared_secret: &HybridKemSharedSecret,
+        is_initiator: bool,
+    ) -> Result<RatchetState> {
         // Derive root key and initial chain keys from shared secret
         let hkdf = Hkdf::<Sha256>::new(Some(domain::MESSAGE_ENCRYPTION), shared_secret.as_ref());
         let mut okm = [0u8; sizes::CHACHA20POLY1305_KEY * 3];
@@ -76,13 +85,17 @@ impl DoubleRatchet {
         let root_key = okm[..sizes::CHACHA20POLY1305_KEY].try_into().unwrap();
         let (send_chain_key, recv_chain_key) = if is_initiator {
             (
-                okm[sizes::CHACHA20POLY1305_KEY..2*sizes::CHACHA20POLY1305_KEY].try_into().unwrap(),
-                okm[2*sizes::CHACHA20POLY1305_KEY..].try_into().unwrap(),
+                okm[sizes::CHACHA20POLY1305_KEY..2 * sizes::CHACHA20POLY1305_KEY]
+                    .try_into()
+                    .unwrap(),
+                okm[2 * sizes::CHACHA20POLY1305_KEY..].try_into().unwrap(),
             )
         } else {
             (
-                okm[2*sizes::CHACHA20POLY1305_KEY..].try_into().unwrap(),
-                okm[sizes::CHACHA20POLY1305_KEY..2*sizes::CHACHA20POLY1305_KEY].try_into().unwrap(),
+                okm[2 * sizes::CHACHA20POLY1305_KEY..].try_into().unwrap(),
+                okm[sizes::CHACHA20POLY1305_KEY..2 * sizes::CHACHA20POLY1305_KEY]
+                    .try_into()
+                    .unwrap(),
             )
         };
 
@@ -103,7 +116,9 @@ impl DoubleRatchet {
     /// Perform a DH ratchet step (when receiving a new DH public key)
     pub fn ratchet_dh(state: &mut RatchetState, remote_dh_pk: &HybridKemPublicKey) -> Result<()> {
         // Generate new local DH keypair if needed
-        let local_dh_sk = state.next_dh_ratchet.take()
+        let local_dh_sk = state
+            .next_dh_ratchet
+            .take()
             .unwrap_or_else(|| HybridKem::generate().expect("DH keypair generation"));
 
         // DH shared secret
@@ -134,7 +149,11 @@ impl DoubleRatchet {
     }
 
     /// Encrypt a message (symmetric ratchet step)
-    pub fn encrypt(state: &mut RatchetState, plaintext: &[u8], associated_data: &[u8]) -> Result<(Vec<u8>, u32, HybridKemPublicKey)> {
+    pub fn encrypt(
+        state: &mut RatchetState,
+        plaintext: &[u8],
+        associated_data: &[u8],
+    ) -> Result<(Vec<u8>, u32, HybridKemPublicKey)> {
         // Derive message key from sending chain
         let (message_key, next_chain_key) = Self::kdf_chain(&state.send_chain_key)?;
         state.send_chain_key = next_chain_key;
@@ -145,11 +164,20 @@ impl DoubleRatchet {
         // Encrypt with ChaCha20-Poly1305
         let cipher = ChaCha20Poly1305::new(&message_key.into());
         let nonce = Self::nonce_from_counter(msg_num);
-        let ciphertext = cipher.encrypt(&nonce.into(), Payload { msg: plaintext, aad: associated_data })
+        let ciphertext = cipher
+            .encrypt(
+                &nonce.into(),
+                Payload {
+                    msg: plaintext,
+                    aad: associated_data,
+                },
+            )
             .map_err(|_| CryptoError::EncryptionFailed)?;
 
         // Get current DH public key for header
-        let dh_pk = state.next_dh_ratchet.as_ref()
+        let dh_pk = state
+            .next_dh_ratchet
+            .as_ref()
             .ok_or(CryptoError::MissingDhRatchet)?
             .public_key();
 
@@ -165,7 +193,14 @@ impl DoubleRatchet {
         dh_pk: &HybridKemPublicKey,
     ) -> Result<Vec<u8>> {
         // Check if we need to do a DH ratchet
-        if state.recv_chain_length > 0 && dh_pk != state.next_dh_ratchet.as_ref().map(|k| k.public_key()).as_ref() {
+        if state.recv_chain_length > 0
+            && dh_pk
+                != state
+                    .next_dh_ratchet
+                    .as_ref()
+                    .map(|k| k.public_key())
+                    .as_ref()
+        {
             // Skip keys up to msg_num
             Self::skip_message_keys(state, msg_num)?;
             // Perform DH ratchet
@@ -173,11 +208,22 @@ impl DoubleRatchet {
         }
 
         // Try to find skipped key
-        if let Some(idx) = state.skipped_keys.iter().position(|k| k.message_number == msg_num && k.dh_public == *dh_pk) {
+        if let Some(idx) = state
+            .skipped_keys
+            .iter()
+            .position(|k| k.message_number == msg_num && k.dh_public == *dh_pk)
+        {
             let skipped = state.skipped_keys.remove(idx).unwrap();
             let cipher = ChaCha20Poly1305::new(&skipped.message_key.into());
             let nonce = Self::nonce_from_counter(msg_num);
-            return cipher.decrypt(&nonce.into(), Payload { msg: ciphertext, aad: associated_data })
+            return cipher
+                .decrypt(
+                    &nonce.into(),
+                    Payload {
+                        msg: ciphertext,
+                        aad: associated_data,
+                    },
+                )
                 .map_err(|_| CryptoError::DecryptionFailed);
         }
 
@@ -193,12 +239,24 @@ impl DoubleRatchet {
 
         let cipher = ChaCha20Poly1305::new(&message_key.into());
         let nonce = Self::nonce_from_counter(msg_num);
-        cipher.decrypt(&nonce.into(), Payload { msg: ciphertext, aad: associated_data })
+        cipher
+            .decrypt(
+                &nonce.into(),
+                Payload {
+                    msg: ciphertext,
+                    aad: associated_data,
+                },
+            )
             .map_err(|_| CryptoError::DecryptionFailed)
     }
 
     /// KDF for chain key: CK' = HMAC-SHA256(CK, 0x01), MK = HMAC-SHA256(CK, 0x02)
-    fn kdf_chain(chain_key: &[u8; sizes::CHACHA20POLY1305_KEY]) -> Result<([u8; sizes::CHACHA20POLY1305_KEY], [u8; sizes::CHACHA20POLY1305_KEY])> {
+    fn kdf_chain(
+        chain_key: &[u8; sizes::CHACHA20POLY1305_KEY],
+    ) -> Result<(
+        [u8; sizes::CHACHA20POLY1305_KEY],
+        [u8; sizes::CHACHA20POLY1305_KEY],
+    )> {
         let hkdf = Hkdf::<Sha256>::new(None, chain_key);
         let mut okm = [0u8; sizes::CHACHA20POLY1305_KEY * 2];
         hkdf.expand(b"yzchat-chain-kdf", &mut okm)
@@ -216,7 +274,9 @@ impl DoubleRatchet {
             let (message_key, next_chain_key) = Self::kdf_chain(&state.recv_chain_key)?;
             state.recv_chain_key = next_chain_key;
 
-            let dh_pk = state.next_dh_ratchet.as_ref()
+            let dh_pk = state
+                .next_dh_ratchet
+                .as_ref()
                 .ok_or(CryptoError::MissingDhRatchet)?
                 .public_key();
 

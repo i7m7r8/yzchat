@@ -13,23 +13,23 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, clippy::all)]
 
-pub mod webrtc_engine;
 pub mod audio;
-pub mod video;
-pub mod screen_share;
-pub mod codecs;
 pub mod capture;
+pub mod codecs;
 pub mod error;
+pub mod screen_share;
 pub mod types;
+pub mod video;
+pub mod webrtc_engine;
 
+pub use audio::{AudioConfig, AudioEngine, AudioTrack};
+pub use capture::{AudioCapture, ScreenCapture, VideoCapture};
+pub use codecs::{AudioCodec, CodecParameters, VideoCodec};
 pub use error::{MediaError, Result};
-pub use webrtc_engine::{WebRtcEngine, WebRtcConfig, PeerConnection};
-pub use audio::{AudioEngine, AudioConfig, AudioTrack};
-pub use video::{VideoEngine, VideoConfig, VideoTrack};
-pub use screen_share::{ScreenShareEngine, ScreenShareConfig, ScreenTrack};
-pub use codecs::{AudioCodec, VideoCodec, CodecParameters};
-pub use capture::{AudioCapture, VideoCapture, ScreenCapture};
+pub use screen_share::{ScreenShareConfig, ScreenShareEngine, ScreenTrack};
 pub use types::*;
+pub use video::{VideoConfig, VideoEngine, VideoTrack};
+pub use webrtc_engine::{PeerConnection, WebRtcConfig, WebRtcEngine};
 
 /// Media engine version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -46,13 +46,13 @@ pub mod resolutions {
 /// Default codec preferences (highest quality first)
 pub mod codec_prefs {
     pub const VIDEO: &[&str] = &[
-        "AV1",      // Best quality/bitrate
-        "VP9",      // Good fallback
-        "H264",     // Universal compatibility
+        "AV1",  // Best quality/bitrate
+        "VP9",  // Good fallback
+        "H264", // Universal compatibility
     ];
     pub const AUDIO: &[&str] = &[
-        "OPUS",     // Best quality
-        "PCMU",     // Fallback
-        "PCMA",     // Fallback
+        "OPUS", // Best quality
+        "PCMU", // Fallback
+        "PCMA", // Fallback
     ];
 }

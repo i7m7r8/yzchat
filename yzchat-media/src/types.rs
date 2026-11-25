@@ -1,9 +1,9 @@
 //! Common types for yzchat-media
 
-use crate::{VideoCodec, AudioCodec, VideoColorFormat, LatencyMode};
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
+use crate::{AudioCodec, LatencyMode, VideoCodec, VideoColorFormat};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 /// Media session types
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
