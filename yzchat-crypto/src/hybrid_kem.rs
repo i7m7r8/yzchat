@@ -113,14 +113,14 @@ impl HybridKem {
         let (kyber_pk, kyber_sk) = kyber768::keypair();
 
         // X25519 keypair
-        let x25519_sk = X25519StaticSecret::random_from_rng(rand::rngs::OsRng);
+        let x25519_sk = X25519StaticSecret::random_from_rng(&mut rand::rngs::OsRng);
         let x25519_pk = X25519PublicKey::from(&x25519_sk);
 
         Ok(HybridKemKeypair {
             kyber_pk: kyber_pk.as_bytes().to_vec(),
             kyber_sk: kyber_sk.as_bytes().to_vec(),
-            x25519_pk: x25519_pk.to_bytes(),
-            x25519_sk: x25519_sk.to_bytes(),
+            x25519_pk: x25519_pk.to_bytes().to_vec(),
+            x25519_sk: x25519_sk.to_bytes().to_vec(),
         })
     }
 
@@ -131,14 +131,14 @@ impl HybridKem {
         // Reconstruct kyber public key from bytes
         let kyber_pk = kyber768::PublicKey::from_bytes(&pk.kyber_pk)
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let x25519_pk = X25519PublicKey::from_bytes(&pk.x25519_pk[..32])
+        let x25519_pk = X25519PublicKey::from_bytes(&pk.x25519_pk)
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
 
         // ML-KEM encapsulation
         let (kyber_ct, kyber_ss) = kyber768::encapsulate(&kyber_pk);
 
         // X25519 ephemeral key generation + DH
-        let x25519_eph_sk = EphemeralSecret::random_from_rng(rand::rngs::OsRng);
+        let x25519_eph_sk = EphemeralSecret::random_from_rng(&mut rand::rngs::OsRng);
         let x25519_eph_pk = X25519PublicKey::from(&x25519_eph_sk);
         let x25519_ss = x25519_eph_sk.diffie_hellman(&x25519_pk);
 
@@ -152,7 +152,7 @@ impl HybridKem {
         Ok((
             HybridKemCiphertext {
                 kyber_ct: kyber_ct.as_bytes().to_vec(),
-                x25519_ephemeral_pk: x25519_eph_pk.to_bytes(),
+                x25519_ephemeral_pk: x25519_eph_pk.to_bytes().to_vec(),
             },
             combined_ss,
         ))
