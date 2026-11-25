@@ -1,8 +1,10 @@
 //! Common types for yzchat-crypto
 
 use crate::sizes;
+use hex;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use uuid::Uuid;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Identity public key (hybrid sign verify key)

@@ -20,7 +20,8 @@ use chacha20poly1305::{
     ChaCha20Poly1305, KeyInit,
 };
 use serde::{Deserialize, Serialize};
-use snow::{Builder, Cipher, Dh, HandshakeState, Hash, Keypair, TransportState};
+use snow::types::{Cipher, Dh, Hash};
+use snow::{Builder, HandshakeState, Keypair, TransportState};
 use std::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 

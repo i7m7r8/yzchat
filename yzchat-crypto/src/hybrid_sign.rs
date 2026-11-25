@@ -10,7 +10,6 @@ use ed25519_dalek::{Signature as Ed25519Signature, Signer, SigningKey, Verifier,
 use pqcrypto_dilithium::dilithium3;
 use pqcrypto_traits::sign::{
     DetachedSignature as PqDetachedSignature, PublicKey as PqPublicKey, SecretKey as PqSecretKey,
-    Signature as PqSignature,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;

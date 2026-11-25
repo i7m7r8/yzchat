@@ -3,6 +3,7 @@
 use crate::storage_manager::StorageManager;
 use crate::types::*;
 use anyhow::{Context, Result};
+use hex;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uniffi::Object;
