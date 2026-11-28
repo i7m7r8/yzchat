@@ -51,10 +51,10 @@ impl AudioCodec {
         } else {
             opus::Channels::Stereo
         };
-        let encoder = opus::Encoder::new(sample_rate as i32, opus_channels, opus::Application::Audio)
+        let encoder = opus::Encoder::new(sample_rate, opus_channels, opus::Application::Audio)
             .context("opus encoder creation failed")?;
         let decoder =
-            opus::Decoder::new(sample_rate as i32, opus_channels)
+            opus::Decoder::new(sample_rate, opus_channels)
                 .context("opus decoder creation failed")?;
         info!(sample_rate, channels = channels_count, "audio codec initialized");
         Ok(Self { encoder, decoder, channels: channels_count })

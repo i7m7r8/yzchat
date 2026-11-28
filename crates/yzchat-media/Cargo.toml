@@ -6,8 +6,6 @@ description = "Media engine for yzchat: audio/video calls and screenshare"
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = { workspace = true }
-tokio = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }
