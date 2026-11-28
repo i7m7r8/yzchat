@@ -3,16 +3,14 @@
 //! Both signatures must verify for acceptance. Provides defense-in-depth:
 //! if either classical or PQ scheme breaks, the other still holds.
 
-use crate::{
-    constant_time_eq, domain, random_bytes, sizes, CryptoError, Result,
-};
-use anyhow::Context;
-use blake3;
-use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
+use crate::{sizes, CryptoError, Result};
+use blake3::Hasher;
+use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey, Signature};
 use pqcrypto_dilithium::dilithium3;
 use pqcrypto_traits::sign::{
     DetachedSignature as PqDetachedSignature, PublicKey as PqPublicKey, SecretKey as PqSecretKey,
 };
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -73,11 +71,15 @@ impl HybridSign {
     /// Generate a new hybrid signing keypair
     pub fn generate() -> Result<HybridSignKeypair> {
         let (dilithium_pk, dilithium_sk) = dilithium3::keypair();
-        let ed25519_sk = SigningKey::generate(&mut rand::rngs::OsRng);
+
+        // Ed25519 keypair from OS randomness
+        let mut ed25519_seed = [0u8; sizes::ED25519_PRIVATE / 2]; // 32-byte seed
+        rand::rngs::OsRng.fill_bytes(&mut ed25519_seed);
+        let ed25519_sk = SigningKey::from(ed25519_seed);
 
         Ok(HybridSignKeypair {
-            dilithium_pk: dilithium_pk.as_ref().to_vec(),
-            dilithium_sk: dilithium_sk.as_ref().to_vec(),
+            dilithium_pk: dilithium_pk.as_bytes().to_vec(),
+            dilithium_sk: dilithium_sk.as_bytes().to_vec(),
             ed25519_sk: ed25519_sk.to_bytes().to_vec(),
         })
     }
@@ -89,10 +91,11 @@ impl HybridSign {
         domain_tag: &[u8],
     ) -> Result<HybridSignature> {
         // Reconstruct keys from bytes
-        let dilithium_sk = dilithium3::SecretKey::from_bytes(&sk.dilithium_sk)
+        let dilithium_sk =
+            dilithium3::SecretKey::from_bytes(&sk.dilithium_sk)
+                .map_err(|_| CryptoError::InvalidKeyFormat)?;
+        let ed25519_sk = SigningKey::try_from(&sk.ed25519_sk[..])
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let ed25519_sk =
-            SigningKey::from_bytes(&sk.ed25519_sk).map_err(|_| CryptoError::InvalidKeyFormat)?;
 
         // Domain-separated hash for each scheme
         let dilithium_msg = Self::domain_separated_hash(message, domain_tag, b"dilithium3");
@@ -101,11 +104,11 @@ impl HybridSign {
         // ML-DSA-65 signature
         let dilithium_sig = dilithium3::detached_sign(&dilithium_msg, &dilithium_sk);
 
-        // Ed25519 signature
+        // Ed25519 signature (infallible via Signer trait)
         let ed25519_sig = ed25519_sk.sign(&ed25519_msg);
 
         Ok(HybridSignature {
-            dilithium_sig: dilithium_sig.as_ref().to_vec(),
+            dilithium_sig: dilithium_sig.as_bytes().to_vec(),
             ed25519_sig: ed25519_sig.to_bytes().to_vec(),
         })
     }
@@ -118,10 +121,12 @@ impl HybridSign {
         domain_tag: &[u8],
     ) -> Result<()> {
         // Reconstruct keys from bytes
-        let dilithium_pk = dilithium3::PublicKey::from_bytes(&vk.dilithium_pk)
-            .map_err(|_| CryptoError::InvalidKeyFormat)?;
+        let dilithium_pk =
+            dilithium3::PublicKey::from_bytes(&vk.dilithium_pk)
+                .map_err(|_| CryptoError::InvalidKeyFormat)?;
         let ed25519_pk =
-            VerifyingKey::from_bytes(&vk.ed25519_pk).map_err(|_| CryptoError::InvalidKeyFormat)?;
+            VerifyingKey::try_from(&vk.ed25519_pk[..])
+                .map_err(|_| CryptoError::InvalidKeyFormat)?;
 
         let dilithium_msg = Self::domain_separated_hash(message, domain_tag, b"dilithium3");
         let ed25519_msg = Self::domain_separated_hash(message, domain_tag, b"ed25519");
@@ -129,8 +134,9 @@ impl HybridSign {
         let dilithium_sig =
             dilithium3::DetachedSignature::from_bytes(&sig.dilithium_sig)
                 .map_err(|_| CryptoError::InvalidSignatureFormat)?;
-        let ed25519_sig = ed25519_dalek::Signature::from_bytes(&sig.ed25519_sig)
-            .map_err(|_| CryptoError::InvalidSignatureFormat)?;
+        let ed25519_sig =
+            Signature::from_slice(&sig.ed25519_sig)
+                .map_err(|_| CryptoError::InvalidSignatureFormat)?;
 
         // Verify ML-DSA-65
         dilithium3::verify_detached_signature(&dilithium_sig, &dilithium_msg, &dilithium_pk)
@@ -146,7 +152,7 @@ impl HybridSign {
 
     /// Domain-separated hash: BLAKE3(message || domain || scheme)
     fn domain_separated_hash(message: &[u8], domain: &[u8], scheme: &[u8]) -> Vec<u8> {
-        let mut hasher = blake3::Hasher::new();
+        let mut hasher = Hasher::new();
         hasher.update(message);
         hasher.update(domain);
         hasher.update(scheme);
@@ -232,7 +238,7 @@ impl HybridSignKeypair {
         let _dilithium_sk =
             dilithium3::SecretKey::from_bytes(&sk_bytes[..sizes::DILITHIUM3_PRIVATE])
                 .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let _ed25519_sk = SigningKey::from_bytes(&sk_bytes[sizes::DILITHIUM3_PRIVATE..])
+        let _ed25519_sk = SigningKey::try_from(&sk_bytes[sizes::DILITHIUM3_PRIVATE..])
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
 
         Ok(Self {

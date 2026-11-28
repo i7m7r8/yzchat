@@ -4,7 +4,7 @@
 //! and hybrid signatures (ML-DSA-65 + Ed25519) for quantum-resistant E2EE.
 
 #![forbid(unsafe_code)]
-#![warn(missing_docs, clippy::all)]
+#![allow(missing_docs)]
 
 pub mod error;
 pub mod hybrid_kem;

@@ -147,7 +147,7 @@ pub struct FileEncryptionInfo {
 }
 
 /// Group encryption state
-#[derive(Clone, Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GroupEncryptionState {
     pub group_id: Uuid,
     pub epoch: u64,

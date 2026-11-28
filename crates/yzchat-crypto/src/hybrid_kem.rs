@@ -3,13 +3,10 @@
 //! Combines classical X25519 ECDH with ML-KEM-768 for quantum resistance.
 //! The shared secret is HKDF(ML-KEM-SS || X25519-SS, salt, info).
 
-use crate::{
-    constant_time_eq, domain, random_bytes, sizes, CryptoError, Result,
-};
-use anyhow::Context;
-use chacha20poly1305::{aead::Aead, ChaCha20Poly1305, KeyInit};
+use crate::{domain, sizes, CryptoError, Result};
 use hkdf::Hkdf;
 use pqcrypto_kyber::kyber768;
+use pqcrypto_traits::kem::{Ciphertext, PublicKey, SecretKey, SharedSecret};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::fmt;
@@ -113,13 +110,13 @@ impl HybridKem {
         // ML-KEM-768 keypair
         let (kyber_pk, kyber_sk) = kyber768::keypair();
 
-        // X25519 keypair (uses OS RNG internally, avoids rand_core mismatch)
+        // X25519 keypair (OS RNG via getrandom)
         let x25519_sk = X25519StaticSecret::random();
         let x25519_pk = X25519PublicKey::from(&x25519_sk);
 
         Ok(HybridKemKeypair {
-            kyber_pk: kyber_pk.as_ref().to_vec(),
-            kyber_sk: kyber_sk.as_ref().to_vec(),
+            kyber_pk: kyber_pk.as_bytes().to_vec(),
+            kyber_sk: kyber_sk.as_bytes().to_vec(),
             x25519_pk: x25519_pk.to_bytes().to_vec(),
             x25519_sk: x25519_sk.to_bytes().to_vec(),
         })
@@ -130,10 +127,15 @@ impl HybridKem {
         pk: &HybridKemPublicKey,
     ) -> Result<(HybridKemCiphertext, HybridKemSharedSecret)> {
         // Reconstruct kyber public key from bytes
-        let kyber_pk = kyber768::PublicKey::from_bytes(&pk.kyber_pk)
+        let kyber_pk =
+            kyber768::PublicKey::from_bytes(&pk.kyber_pk)
+                .map_err(|_| CryptoError::InvalidKeyFormat)?;
+        let x25519_arr: [u8; 32] = pk
+            .x25519_pk
+            .as_slice()
+            .try_into()
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let x25519_pk = X25519PublicKey::from_bytes(&pk.x25519_pk)
-            .map_err(|_| CryptoError::InvalidKeyFormat)?;
+        let x25519_pk = X25519PublicKey::from(x25519_arr);
 
         // ML-KEM encapsulation
         let (kyber_ct, kyber_ss) = kyber768::encapsulate(&kyber_pk);
@@ -145,14 +147,14 @@ impl HybridKem {
 
         // Combine shared secrets via HKDF
         let combined_ss = HybridKem::combine_shared_secrets(
-            kyber_ss.as_ref(),
-            x25519_ss.as_ref(),
+            kyber_ss.as_bytes(),
+            x25519_ss.as_bytes(),
             domain::KEY_EXCHANGE,
         )?;
 
         Ok((
             HybridKemCiphertext {
-                kyber_ct: kyber_ct.as_ref().to_vec(),
+                kyber_ct: kyber_ct.as_bytes().to_vec(),
                 x25519_ephemeral_pk: x25519_eph_pk.to_bytes().to_vec(),
             },
             combined_ss,
@@ -165,14 +167,24 @@ impl HybridKem {
         ct: &HybridKemCiphertext,
     ) -> Result<HybridKemSharedSecret> {
         // Reconstruct keys from bytes
-        let kyber_sk = kyber768::SecretKey::from_bytes(&sk.kyber_sk)
+        let kyber_sk =
+            kyber768::SecretKey::from_bytes(&sk.kyber_sk)
+                .map_err(|_| CryptoError::InvalidKeyFormat)?;
+        let kyber_ct =
+            kyber768::Ciphertext::from_bytes(&ct.kyber_ct)
+                .map_err(|_| CryptoError::InvalidCiphertextFormat)?;
+        let x25519_arr: [u8; 32] = sk
+            .x25519_sk
+            .as_slice()
+            .try_into()
             .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let kyber_ct = kyber768::Ciphertext::from_bytes(&ct.kyber_ct)
+        let x25519_sk = X25519StaticSecret::from(x25519_arr);
+        let x25519_arr: [u8; 32] = ct
+            .x25519_ephemeral_pk
+            .as_slice()
+            .try_into()
             .map_err(|_| CryptoError::InvalidCiphertextFormat)?;
-        let x25519_sk = X25519StaticSecret::from_bytes(&sk.x25519_sk)
-            .map_err(|_| CryptoError::InvalidKeyFormat)?;
-        let x25519_ephemeral_pk = X25519PublicKey::from_bytes(&ct.x25519_ephemeral_pk)
-            .map_err(|_| CryptoError::InvalidCiphertextFormat)?;
+        let x25519_ephemeral_pk = X25519PublicKey::from(x25519_arr);
 
         // ML-KEM decapsulation
         let kyber_ss = kyber768::decapsulate(&kyber_ct, &kyber_sk);
@@ -182,8 +194,8 @@ impl HybridKem {
 
         // Combine
         HybridKem::combine_shared_secrets(
-            kyber_ss.as_ref(),
-            x25519_ss.as_ref(),
+            kyber_ss.as_bytes(),
+            x25519_ss.as_bytes(),
             domain::KEY_EXCHANGE,
         )
     }
@@ -201,7 +213,7 @@ impl HybridKem {
         let hkdf = Hkdf::<Sha256>::new(Some(domain), &combined);
         let mut okm = [0u8; sizes::CHACHA20POLY1305_KEY];
         hkdf.expand(b"yzchat-hybrid-kem-v1", &mut okm)
-            .context("HKDF expand failed")?;
+            .map_err(|_| CryptoError::Other(anyhow::anyhow!("hkdf expand failed")))?;
 
         Ok(HybridKemSharedSecret(okm))
     }
@@ -305,11 +317,13 @@ impl HybridKemKeypair {
         let pk = HybridKem::public_key_from_bytes(pk_bytes)?;
         let sk = HybridKem::secret_key_from_bytes(sk_bytes)?;
 
+        // `sk` implements Drop (ZeroizeOnDrop), so clone its fields rather
+        // than moving them out.
         Ok(Self {
             kyber_pk: pk.kyber_pk,
-            kyber_sk: sk.kyber_sk,
+            kyber_sk: sk.kyber_sk.clone(),
             x25519_pk: pk.x25519_pk,
-            x25519_sk: sk.x25519_sk,
+            x25519_sk: sk.x25519_sk.clone(),
         })
     }
 }

@@ -10,18 +10,15 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
-bytes = { workspace = true }
 uuid = { workspace = true }
-parking_lot = { workspace = true }
 
 opus = { workspace = true }
-rav1e = { workspace = true }
 
 yzchat-crypto = { path = "../yzchat-crypto" }
 
 [target.'cfg(target_os = "android")'.dependencies]
-jni = { workspace = true }
-android_logger = { workspace = true }
+jni = { version = "0.21", features = ["invocation"] }
+android_logger = "0.15"
 
 [features]
 default = ["std"]

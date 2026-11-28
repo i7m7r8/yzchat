@@ -20,9 +20,7 @@ pub struct NoiseSession {
 impl NoiseSession {
     /// Initiate a Noise handshake as initiator using a 32-byte X25519 static private key.
     pub async fn initiate(local_static_sk: &[u8; 32]) -> Result<Self> {
-        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(|_| {
-            CryptoError::NoiseError(snow::Error::InvalidHandshake)
-        })?);
+        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(CryptoError::NoiseError)?);
 
         let mut handshake = builder
             .local_private_key(local_static_sk)
@@ -50,17 +48,15 @@ impl NoiseSession {
 
     /// Respond to a Noise handshake as responder using a 32-byte X25519 static private key.
     pub async fn respond(local_static_sk: &[u8; 32]) -> Result<Self> {
-        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(|_| {
-            CryptoError::NoiseError(snow::Error::InvalidHandshake)
-        })?);
+        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(CryptoError::NoiseError)?);
 
         let mut handshake = builder
             .local_private_key(local_static_sk)
             .build_responder()?;
 
         // Read message 1, write message 2, read message 3
-        let mut msg1 = vec![0u8; 4096];
-        let len = handshake.read_message(&msg1, &mut vec![])?; // placeholder read
+        let msg1 = vec![0u8; 4096];
+        let len = handshake.read_message(&msg1, &mut [])?; // placeholder read
         let _ = len;
 
         let transport = handshake.into_transport_mode()?;
@@ -106,9 +102,7 @@ pub enum HandshakeRole {
 impl NoiseHandshakeState {
     /// Create new handshake as initiator
     pub fn new_initiator(local_static_sk: &[u8; 32]) -> Result<Self> {
-        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(|_| {
-            CryptoError::NoiseError(snow::Error::InvalidHandshake)
-        })?);
+        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(CryptoError::NoiseError)?);
         let handshake = builder.local_private_key(local_static_sk).build_initiator()?;
 
         Ok(Self {
@@ -119,9 +113,7 @@ impl NoiseHandshakeState {
 
     /// Create new handshake as responder
     pub fn new_responder(local_static_sk: &[u8; 32]) -> Result<Self> {
-        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(|_| {
-            CryptoError::NoiseError(snow::Error::InvalidHandshake)
-        })?);
+        let builder = Builder::new(NOISE_PROTOCOL.parse().map_err(CryptoError::NoiseError)?);
         let handshake = builder.local_private_key(local_static_sk).build_responder()?;
 
         Ok(Self {

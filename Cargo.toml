@@ -15,20 +15,14 @@ anyhow = "1.0"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-bytes = "1.5"
-futures = "0.3"
 hex = "0.4"
-parking_lot = "0.12"
 dashmap = "5.5"
 uuid = { version = "1.8", features = ["v4", "v7", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
 
 # Crypto (versions pinned so rand_core matches x25519-dalek/elliptic_curve)
-p256 = { version = "0.13", features = ["pkcs8", "ecdsa", "sha256"] }
 ed25519-dalek = "2"
-x25519-dalek = { version = "2", default-features = false, features = ["zeroize"] }
+x25519-dalek = { version = "2", features = ["getrandom", "static_secrets", "zeroize"] }
 chacha20poly1305 = "0.10"
-aes-gcm = "0.10"
 hkdf = "0.12"
 sha2 = "0.10"
 blake3 = "1.5"
@@ -46,31 +40,9 @@ iroh = { version = "0.28", default-features = false, features = [
     "discovery-local-network",
     "fs-store",
 ] }
-quinn = "0.11"
-sdp = "0.3"
 
 # Media
-webrtc = { version = "0.20", default-features = false }
-gstreamer = { version = "0.20", features = ["v1_18"] }
-gstreamer-app = { version = "0.20", features = ["v1_18"] }
-gstreamer-video = { version = "0.20", features = ["v1_18"] }
-gstreamer-audio = { version = "0.20", features = ["v1_18"] }
-gstreamer-base = { version = "0.20", features = ["v1_18"] }
-gstreamer-pbutils = { version = "0.20", features = ["v1_18"] }
-gstreamer-sdp = { version = "0.20", features = ["v1_18"] }
 opus = "0.4"
-rav1e = "0.7"
-
-# UI (cross-platform, all-Rust, Signal-like)
-slint = "1"
-
-# Android (target-gated, used by yzchat-media on android)
-jni = { version = "0.21", features = ["invocation"] }
-android_logger = "0.15"
-
-# Storage
-sled = { version = "0.34", features = ["compression", "zstd"] }
-redb = "0.1"
 
 [profile.release]
 lto = true

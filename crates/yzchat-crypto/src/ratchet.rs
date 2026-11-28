@@ -7,7 +7,6 @@ use crate::{
     domain, hybrid_kem::{HybridKem, HybridKemKeypair, HybridKemPublicKey, HybridKemSharedSecret},
     sizes, CryptoError, Result,
 };
-use anyhow::Context;
 use chacha20poly1305::{
     aead::{Aead, Payload},
     ChaCha20Poly1305, KeyInit,
@@ -75,7 +74,7 @@ impl DoubleRatchet {
         let hkdf = Hkdf::<Sha256>::new(Some(domain::MESSAGE_ENCRYPTION), shared_secret.as_ref());
         let mut okm = [0u8; sizes::CHACHA20POLY1305_KEY * 3];
         hkdf.expand(b"yzchat-double-ratchet-init", &mut okm)
-            .context("HKDF expand failed")?;
+            .map_err(|_| CryptoError::Other(anyhow::anyhow!("hkdf expand failed")))?;
 
         let root_key = okm[..sizes::CHACHA20POLY1305_KEY].try_into().unwrap();
         let (send_chain_key, recv_chain_key) = if is_initiator {
@@ -110,12 +109,6 @@ impl DoubleRatchet {
 
     /// Perform a DH ratchet step (when receiving a new DH public key)
     pub fn ratchet_dh(state: &mut RatchetState, remote_dh_pk: &HybridKemPublicKey) -> Result<()> {
-        // Generate new local DH keypair if needed
-        let local_dh_sk = state
-            .next_dh_ratchet
-            .take()
-            .unwrap_or_else(|| HybridKem::generate().expect("DH keypair generation"));
-
         // DH shared secret
         let (_dh_ct, dh_shared) = HybridKem::encapsulate(remote_dh_pk)?;
 
@@ -123,7 +116,7 @@ impl DoubleRatchet {
         let hkdf = Hkdf::<Sha256>::new(Some(&state.root_key), dh_shared.as_ref());
         let mut okm = [0u8; sizes::CHACHA20POLY1305_KEY * 2];
         hkdf.expand(b"yzchat-dh-ratchet", &mut okm)
-            .context("HKDF expand failed")?;
+            .map_err(|_| CryptoError::Other(anyhow::anyhow!("hkdf expand failed")))?;
 
         state.root_key = okm[..sizes::CHACHA20POLY1305_KEY].try_into().unwrap();
         state.recv_chain_key = okm[sizes::CHACHA20POLY1305_KEY..].try_into().unwrap();
@@ -189,7 +182,7 @@ impl DoubleRatchet {
     ) -> Result<Vec<u8>> {
         // Check if we need to do a DH ratchet
         if state.recv_chain_length > 0
-            && dh_pk
+            && Some(dh_pk)
                 != state
                     .next_dh_ratchet
                     .as_ref()
@@ -255,7 +248,7 @@ impl DoubleRatchet {
         let hkdf = Hkdf::<Sha256>::new(None, chain_key);
         let mut okm = [0u8; sizes::CHACHA20POLY1305_KEY * 2];
         hkdf.expand(b"yzchat-chain-kdf", &mut okm)
-            .context("HKDF expand failed")?;
+            .map_err(|_| CryptoError::Other(anyhow::anyhow!("hkdf expand failed")))?;
 
         let message_key = okm[..sizes::CHACHA20POLY1305_KEY].try_into().unwrap();
         let next_chain_key = okm[sizes::CHACHA20POLY1305_KEY..].try_into().unwrap();

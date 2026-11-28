@@ -14,8 +14,7 @@ use tokio::io::AsyncWriteExt;
 use tracing::{debug, info};
 
 use yzchat_crypto::{
-    hybrid_kem::HybridKem,
-    sizes, CryptoError, Result,
+    hybrid_kem::HybridKem, CryptoError, Result,
 };
 
 /// Application-layer protocol ALPN for yzchat over iroh.
