@@ -3,6 +3,8 @@
 use uniffi::export;
 use yzchat_crypto::hybrid_kem::HybridKem;
 
+uniffi::setup_scaffolding!();
+
 /// Return the crate version.
 #[export]
 pub fn yzchat_version() -> String {
