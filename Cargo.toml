@@ -7,19 +7,10 @@ members = [
     "yzchat-ffi",
 ]
 
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-license = "GPL-3.0-or-later"
-description = "yzchat — Pure P2P messenger, quantum-resistant, zero infrastructure"
-repository = "https://github.com/yzchat/yzchat"
-authors = ["yzchat contributors <dev@yzchat.org>"]
-
 [workspace.dependencies]
 # Async runtime
 tokio = { version = "1.40", features = ["full", "tracing"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 anyhow = "1.0"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -54,10 +45,6 @@ iroh = { version = "0.28.1", features = ["discovery-pkarr-dht", "discovery-local
 # iroh provides: QUIC transport, DHT (kademlia), blobs, RPC, WebRTC via iroh-webrtc (future)
 # For now: iroh + webrtc via iroh-webrtc when available
 quinn = "0.11"
-quinn-proto = "0.11"
-rustls = { version = "0.23", features = ["dangerous-configuration", "logging", "std"] }
-rustls-pemfile = "1.0"
-rcgen = "0.11"
 sdp = "0.3"
 
 # Media
@@ -74,18 +61,15 @@ rav1e = "0.7"
 
 # FFI / UniFFI
 uniffi = { version = "0.28" }
-uniffi_macros = "0.28"
 uniffi_build = "0.28"
 
 # Android
 jni = { version = "0.21", features = ["invocation"] }
 android_logger = "0.15"
-log = "0.4"
 
 # Storage
 sled = { version = "0.34", features = ["compression", "zstd"] }
 redb = "0.1"
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio-rustls", "chrono", "uuid", "json"] }
 
 [profile.release]
 lto = true
