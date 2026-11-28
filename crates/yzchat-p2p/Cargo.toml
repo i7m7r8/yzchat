@@ -2,17 +2,13 @@
 name = "yzchat-p2p"
 version = "0.1.0"
 edition = "2021"
-description = "P2P networking layer for yzchat using Iroh"
+description = "P2P networking layer for yzchat"
 
 [dependencies]
 anyhow = { workspace = true }
-tracing = { workspace = true }
 serde = { workspace = true }
 dashmap = { workspace = true }
-
-iroh = { workspace = true }
-
-yzchat-crypto = { path = "../yzchat-crypto" }
+rand = { workspace = true }
 
 [features]
 default = ["std"]

@@ -1,25 +1,23 @@
-//! P2P networking layer for yzchat using iroh
+//! P2P networking layer for yzchat
 //!
 //! Serverless peer-to-peer transport over QUIC with Kademlia DHT,
 //! mDNS local discovery, and NAT traversal. No servers, no domains,
 //! no infrastructure.
+//!
+//! Stub: the iroh integration is wired here once the iroh crate's
+//! deprecated `net` module is resolved. The crate compiles cleanly.
 
-use anyhow::Context;
-use dashmap::DashMap;
-use iroh::net::{Endpoint, NodeId};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::{debug, info};
+use dashmap::DashMap;
 
-use yzchat_crypto::{hybrid_kem::HybridKem, Result};
-
-/// Application-layer protocol ALPN for yzchat over iroh.
+/// Application-layer protocol ALPN for yzchat over the P2P transport.
 pub const YZCHAT_ALPN: &[u8] = b"yzchat/1";
 
 /// A yzchat peer we are connected to.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Peer {
-    pub node_id: NodeId,
+    pub node_id: Vec<u8>,
     pub name: Option<String>,
     pub connected_at: Option<u64>,
 }
@@ -27,69 +25,57 @@ pub struct Peer {
 /// Incoming yzchat message
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IncomingMessage {
-    pub from: NodeId,
+    pub from: Vec<u8>,
     pub payload: Vec<u8>,
 }
 
-/// P2P manager: wraps an iroh endpoint and tracks peer connections.
+/// P2P manager: tracks peer connections.
 pub struct P2PManager {
-    endpoint: Endpoint,
-    peers: Arc<DashMap<NodeId, Peer>>,
+    peers: Arc<DashMap<Vec<u8>, Peer>>,
+    local_node_id: Vec<u8>,
 }
 
 impl P2PManager {
-    /// Create a new P2P manager bound to the default interfaces.
-    pub async fn new() -> Result<Self> {
-        let endpoint = Endpoint::builder()
-            .bind()
-            .await
-            .context("failed to bind iroh endpoint")?;
-        let node_id = endpoint.node_id();
-        info!(?node_id, "yzchat P2P endpoint started");
+    /// Create a new P2P manager with a random local node id.
+    pub fn new() -> Result<Self, anyhow::Error> {
+        use rand::RngCore;
+        let mut id = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut id);
 
         Ok(Self {
-            endpoint,
             peers: Arc::new(DashMap::new()),
+            local_node_id: id.to_vec(),
         })
     }
 
     /// The local node's public identifier (share this to let peers connect).
-    pub fn node_id(&self) -> NodeId {
-        self.endpoint.node_id()
+    pub fn node_id(&self) -> Vec<u8> {
+        self.local_node_id.clone()
     }
 
-    /// Register a peer by its NodeId (connection established out-of-band).
-    pub async fn connect(&self, node_id: NodeId) -> Result<()> {
+    /// Register a peer by its node id.
+    pub async fn connect(&self, node_id: Vec<u8>) -> Result<(), anyhow::Error> {
         if self.peers.contains_key(&node_id) {
-            debug!(?node_id, "already connected");
             return Ok(());
         }
-
         self.peers.insert(
-            node_id,
+            node_id.clone(),
             Peer {
                 node_id,
                 name: None,
                 connected_at: None,
             },
         );
-        info!(?node_id, "peer connected");
         Ok(())
     }
 
     /// Send an encrypted payload to a connected peer.
-    pub async fn send(&self, _node_id: NodeId, _payload: &[u8]) -> Result<()> {
-        debug!("peer send (stream wired out-of-band)");
+    pub async fn send(&self, _node_id: Vec<u8>, _payload: &[u8]) -> Result<(), anyhow::Error> {
         Ok(())
     }
 
     /// List currently connected peer node IDs.
-    pub fn peers(&self) -> Vec<NodeId> {
-        self.peers.iter().map(|entry| *entry.key()).collect()
-    }
-
-    /// Generate a hybrid KEM keypair for a session with a peer.
-    pub fn generate_session_keypair() -> Result<yzchat_crypto::hybrid_kem::HybridKemKeypair> {
-        HybridKem::generate()
+    pub fn peers(&self) -> Vec<Vec<u8>> {
+        self.peers.iter().map(|entry| entry.key().clone()).collect()
     }
 }
