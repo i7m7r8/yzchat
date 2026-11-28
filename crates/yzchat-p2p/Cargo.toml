@@ -7,7 +7,6 @@ description = "P2P networking layer for yzchat using Iroh"
 [dependencies]
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

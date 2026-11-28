@@ -9,7 +9,6 @@ use dashmap::DashMap;
 use iroh_net::{Endpoint, NodeId};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 use yzchat_crypto::{hybrid_kem::HybridKem, CryptoError, Result};
@@ -36,7 +35,6 @@ pub struct IncomingMessage {
 pub struct P2PManager {
     endpoint: Endpoint,
     peers: Arc<DashMap<NodeId, Peer>>,
-    connections: Arc<DashMap<NodeId, Mutex<Option<iroh_net::Connection>>>>,
 }
 
 impl P2PManager {
@@ -52,7 +50,6 @@ impl P2PManager {
         Ok(Self {
             endpoint,
             peers: Arc::new(DashMap::new()),
-            connections: Arc::new(DashMap::new()),
         })
     }
 
@@ -61,14 +58,13 @@ impl P2PManager {
         self.endpoint.node_id()
     }
 
-    /// Connect to a peer by its NodeId and complete the Noise/hybrid handshake.
+    /// Register a peer by its NodeId (connection established out-of-band).
     pub async fn connect(&self, node_id: NodeId) -> Result<()> {
-        if self.connections.contains_key(&node_id) {
+        if self.peers.contains_key(&node_id) {
             debug!(?node_id, "already connected");
             return Ok(());
         }
 
-        debug!(?node_id, "peer registered (connection established out-of-band)");
         self.peers.insert(
             node_id,
             Peer {
@@ -90,11 +86,6 @@ impl P2PManager {
     /// List currently connected peer node IDs.
     pub fn peers(&self) -> Vec<NodeId> {
         self.peers.iter().map(|entry| entry.key().clone()).collect()
-    }
-
-    /// Accept an incoming connection (called by the iroh accept loop).
-    pub async fn accept(&self, _connection: iroh_net::Connection) -> Result<NodeId> {
-        unimplemented!("accept not yet wired to iroh-net event loop")
     }
 
     /// Generate a hybrid KEM keypair for a session with a peer.
