@@ -1,0 +1,34 @@
+[package]
+name = "yzchat-crypto"
+version = "0.1.0"
+edition = "2021"
+description = "Quantum-resistant hybrid cryptography for yzchat"
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+hex = { workspace = true }
+uuid = { workspace = true }
+zeroize = { workspace = true }
+subtle = { workspace = true }
+rand = { workspace = true }
+x25519-dalek = { workspace = true }
+ed25519-dalek = { workspace = true }
+chacha20poly1305 = { workspace = true }
+aes-gcm = { workspace = true }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
+blake3 = { workspace = true }
+pqcrypto-kyber = { workspace = true }
+pqcrypto-dilithium = { workspace = true }
+pqcrypto-traits = { workspace = true }
+
+# Noise protocol framework
+snow = { version = "0.9" }
+
+[features]
+default = ["std"]
+std = []

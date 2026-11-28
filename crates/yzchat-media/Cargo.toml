@@ -1,0 +1,28 @@
+[package]
+name = "yzchat-media"
+version = "0.1.0"
+edition = "2021"
+description = "Media engine for yzchat: audio/video calls and screenshare"
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+bytes = { workspace = true }
+uuid = { workspace = true }
+parking_lot = { workspace = true }
+
+opus = { workspace = true }
+rav1e = { workspace = true }
+
+yzchat-crypto = { path = "../yzchat-crypto" }
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { workspace = true }
+android_logger = { workspace = true }
+
+[features]
+default = ["std"]
+std = []

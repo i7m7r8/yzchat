@@ -1,0 +1,18 @@
+[package]
+name = "yzchat-ui"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform Signal-like UI for yzchat (Slint, all-Rust)"
+
+[dependencies]
+slint = "1"
+yzchat-crypto = { path = "../yzchat-crypto" }
+yzchat-media = { path = "../yzchat-media" }
+
+[[bin]]
+name = "yzchat-ui"
+path = "src/main.rs"
+
+[features]
+default = ["std"]
+std = []
