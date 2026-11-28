@@ -2,17 +2,21 @@
 
 plugins {
     id("com.android.application") version "8.5.0" apply false
-    id("org.jetbrains.kotlin.android") version "2.0.20" apply false
-    id("com.google.devtools.ksp") version "2.0.20-1.0.14" apply false
-    id("dagger.hilt.android.plugin") version "2.48" apply false
-    id("org.fortran.binary-dependencies") version "0.2.0" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.23" apply false
 }
 
 allprojects {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("https://jitpack.io") }
+    }
+
+    configurations.all {
+        resolutionStrategy.foreachDependency { details ->
+            if (details.requested.group == "androidx.core") {
+                details.useVersion("1.12.0")
+            }
+        }
     }
 }
 
