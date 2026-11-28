@@ -35,7 +35,7 @@ pqcrypto-dilithium = { version = "0.5" }
 pqcrypto-traits = { version = "0.3" }
 
 # P2P / Networking (serverless, QUIC + DHT + NAT traversal)
-iroh-net = { version = "0.28" }
+iroh = { version = "0.28" }
 
 # Media
 opus = "0.4"

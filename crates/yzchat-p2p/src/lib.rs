@@ -1,4 +1,4 @@
-//! P2P networking layer for yzchat using iroh-net
+//! P2P networking layer for yzchat using iroh
 //!
 //! Serverless peer-to-peer transport over QUIC with Kademlia DHT,
 //! mDNS local discovery, and NAT traversal. No servers, no domains,
@@ -6,12 +6,12 @@
 
 use anyhow::Context;
 use dashmap::DashMap;
-use iroh_net::{Endpoint, NodeId};
+use iroh::net::{Endpoint, NodeId};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{debug, info};
 
-use yzchat_crypto::{hybrid_kem::HybridKem, CryptoError, Result};
+use yzchat_crypto::{hybrid_kem::HybridKem, Result};
 
 /// Application-layer protocol ALPN for yzchat over iroh.
 pub const YZCHAT_ALPN: &[u8] = b"yzchat/1";
@@ -31,7 +31,7 @@ pub struct IncomingMessage {
     pub payload: Vec<u8>,
 }
 
-/// P2P manager: wraps an iroh-net endpoint and tracks peer connections.
+/// P2P manager: wraps an iroh endpoint and tracks peer connections.
 pub struct P2PManager {
     endpoint: Endpoint,
     peers: Arc<DashMap<NodeId, Peer>>,
@@ -43,7 +43,7 @@ impl P2PManager {
         let endpoint = Endpoint::builder()
             .bind()
             .await
-            .context("failed to bind iroh-net endpoint")?;
+            .context("failed to bind iroh endpoint")?;
         let node_id = endpoint.node_id();
         info!(?node_id, "yzchat P2P endpoint started");
 
@@ -85,7 +85,7 @@ impl P2PManager {
 
     /// List currently connected peer node IDs.
     pub fn peers(&self) -> Vec<NodeId> {
-        self.peers.iter().map(|entry| entry.key().clone()).collect()
+        self.peers.iter().map(|entry| *entry.key()).collect()
     }
 
     /// Generate a hybrid KEM keypair for a session with a peer.

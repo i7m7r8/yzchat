@@ -6,14 +6,11 @@ description = "P2P networking layer for yzchat using Iroh"
 
 [dependencies]
 anyhow = { workspace = true }
-thiserror = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 dashmap = { workspace = true }
-uuid = { workspace = true }
 
-iroh-net = { workspace = true }
+iroh = { workspace = true }
 
 yzchat-crypto = { path = "../yzchat-crypto" }
 
