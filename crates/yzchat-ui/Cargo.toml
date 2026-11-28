@@ -6,7 +6,6 @@ description = "Cross-platform Signal-like UI for yzchat (Slint, all-Rust)"
 
 [dependencies]
 yzchat-crypto = { path = "../yzchat-crypto" }
-yzchat-media = { path = "../yzchat-media" }
 
 [[bin]]
 name = "yzchat-ui"
