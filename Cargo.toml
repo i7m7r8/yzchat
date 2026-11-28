@@ -5,6 +5,7 @@ members = [
     "crates/yzchat-p2p",
     "crates/yzchat-media",
     "crates/yzchat-ui",
+    "crates/yzchat-ffi",
 ]
 
 [workspace.dependencies]
@@ -34,6 +35,9 @@ pqcrypto-traits = { version = "0.3" }
 
 # Media
 opus = "0.4"
+
+# FFI / UniFFI (Android Kotlin bindings)
+uniffi = "0.28"
 
 [profile.release]
 lto = true

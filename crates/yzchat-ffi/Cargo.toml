@@ -1,0 +1,17 @@
+[package]
+name = "yzchat-ffi"
+version = "0.1.0"
+edition = "2021"
+description = "UniFFI bindings for yzchat: Kotlin ↔ Rust FFI"
+
+[dependencies]
+uniffi = { workspace = true }
+
+yzchat-crypto = { path = "../yzchat-crypto" }
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[features]
+default = ["std"]
+std = []
