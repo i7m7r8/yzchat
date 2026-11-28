@@ -7,8 +7,8 @@ use std::rc::Rc;
 use yzchat_crypto::{hybrid_kem::HybridKem, CryptoError, Result};
 use yzchat_media::MediaManager;
 
+#[slint::edition = "1.19"]
 slint::slint! {
-    #[slint::edition = "1.19"]
     export component MainWindow inherits Window {
         property <string> selectedPeer: "";
 
