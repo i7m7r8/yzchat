@@ -10,14 +10,6 @@ allprojects {
         google()
         mavenCentral()
     }
-
-    configurations.all {
-        resolutionStrategy.foreachDependency { details ->
-            if (details.requested.group == "androidx.core") {
-                details.useVersion("1.12.0")
-            }
-        }
-    }
 }
 
 tasks.register("clean", Delete::class) {
