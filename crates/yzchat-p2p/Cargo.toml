@@ -14,7 +14,7 @@ serde_json = { workspace = true }
 dashmap = { workspace = true }
 uuid = { workspace = true }
 
-iroh = { workspace = true }
+iroh-net = { workspace = true }
 
 yzchat-crypto = { path = "../yzchat-crypto" }
 

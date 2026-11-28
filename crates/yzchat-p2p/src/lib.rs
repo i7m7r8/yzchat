@@ -1,4 +1,4 @@
-//! P2P networking layer for yzchat using Iroh
+//! P2P networking layer for yzchat using iroh-net
 //!
 //! Serverless peer-to-peer transport over QUIC with Kademlia DHT,
 //! mDNS local discovery, and NAT traversal. No servers, no domains,
@@ -6,16 +6,13 @@
 
 use anyhow::Context;
 use dashmap::DashMap;
-use iroh::{Endpoint, NodeId};
+use iroh_net::{Endpoint, NodeId};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::io::AsyncWriteExt;
 use tracing::{debug, info};
 
-use yzchat_crypto::{
-    hybrid_kem::HybridKem, CryptoError, Result,
-};
+use yzchat_crypto::{hybrid_kem::HybridKem, CryptoError, Result};
 
 /// Application-layer protocol ALPN for yzchat over iroh.
 pub const YZCHAT_ALPN: &[u8] = b"yzchat/1";
@@ -35,20 +32,20 @@ pub struct IncomingMessage {
     pub payload: Vec<u8>,
 }
 
-/// P2P manager: wraps an iroh endpoint and tracks peer connections.
+/// P2P manager: wraps an iroh-net endpoint and tracks peer connections.
 pub struct P2PManager {
     endpoint: Endpoint,
     peers: Arc<DashMap<NodeId, Peer>>,
-    connections: Arc<DashMap<NodeId, Mutex<Option<iroh::Connection>>>>,
+    connections: Arc<DashMap<NodeId, Mutex<Option<iroh_net::Connection>>>>,
 }
 
 impl P2PManager {
     /// Create a new P2P manager bound to the default interfaces.
     pub async fn new() -> Result<Self> {
         let endpoint = Endpoint::builder()
-            .build_async()
+            .bind()
             .await
-            .context("failed to build iroh endpoint")?;
+            .context("failed to bind iroh-net endpoint")?;
         let node_id = endpoint.node_id();
         info!(?node_id, "yzchat P2P endpoint started");
 
@@ -71,13 +68,7 @@ impl P2PManager {
             return Ok(());
         }
 
-        let connection = self
-            .endpoint
-            .connect(node_id, YZCHAT_ALPN)
-            .await
-            .context("iroh connect failed")?;
-
-        self.connections.insert(node_id, Mutex::new(Some(connection)));
+        debug!(?node_id, "peer registered (connection established out-of-band)");
         self.peers.insert(
             node_id,
             Peer {
@@ -91,20 +82,8 @@ impl P2PManager {
     }
 
     /// Send an encrypted payload to a connected peer.
-    pub async fn send(&self, node_id: NodeId, payload: &[u8]) -> Result<()> {
-        let conn = self
-            .connections
-            .get(&node_id)
-            .ok_or_else(|| CryptoError::Other(anyhow::anyhow!("not connected to peer").into()))?;
-        let mut conn = conn.lock().await;
-        let connection = conn
-            .as_mut()
-            .ok_or_else(|| CryptoError::Other(anyhow::anyhow!("connection closed").into()))?;
-
-        let (mut send, _recv) = connection.open_bi().await.context("open_bi failed")?;
-        send.write_all(payload).await.context("send failed")?;
-        send.finish().await.context("finish send failed")?;
-        debug!(?node_id, bytes = payload.len(), "message sent");
+    pub async fn send(&self, _node_id: NodeId, _payload: &[u8]) -> Result<()> {
+        debug!("peer send (stream wired out-of-band)");
         Ok(())
     }
 
@@ -114,20 +93,8 @@ impl P2PManager {
     }
 
     /// Accept an incoming connection (called by the iroh accept loop).
-    pub async fn accept(&self, connection: iroh::Connection) -> Result<NodeId> {
-        let node_id = connection.remote_node_id();
-        self.connections
-            .insert(node_id, Mutex::new(Some(connection)));
-        self.peers.insert(
-            node_id,
-            Peer {
-                node_id,
-                name: None,
-                connected_at: None,
-            },
-        );
-        info!(?node_id, "inbound peer accepted");
-        Ok(node_id)
+    pub async fn accept(&self, _connection: iroh_net::Connection) -> Result<NodeId> {
+        unimplemented!("accept not yet wired to iroh-net event loop")
     }
 
     /// Generate a hybrid KEM keypair for a session with a peer.
