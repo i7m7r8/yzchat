@@ -5,7 +5,6 @@ edition = "2021"
 description = "Cross-platform Signal-like UI for yzchat (Slint, all-Rust)"
 
 [dependencies]
-slint = { version = "1" }
 yzchat-crypto = { path = "../yzchat-crypto" }
 yzchat-media = { path = "../yzchat-media" }
 
